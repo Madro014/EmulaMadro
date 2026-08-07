@@ -52,8 +52,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
 
     let code = key;
     let keyCode = 0;
-    if (key === 'Space') { code = 'Space'; keyCode = 32; }
-    else if (key === 'Tab') { code = 'Tab'; keyCode = 9; }
+    if (key.toLowerCase() === 'space') { code = 'Space'; keyCode = 32; }
+    else if (key.toLowerCase() === 'tab') { code = 'Tab'; keyCode = 9; }
     else { 
       code = `Key${key.toUpperCase()}`; 
       keyCode = key.toUpperCase().charCodeAt(0); 
@@ -214,12 +214,12 @@ export default function RetroEmulator({ romFile, core, onStop }) {
             input_player2_down: "k",
             input_player2_left: "j",
             input_player2_right: "l",
-            input_player2_a: "n",
-            input_player2_b: "m",
-            input_player2_x: "h",
-            input_player2_y: "g",
-            input_player2_l: "u",
-            input_player2_r: "o",
+            input_player2_a: "m",
+            input_player2_b: "n",
+            input_player2_x: "u",
+            input_player2_y: "o",
+            input_player2_l: "v",
+            input_player2_r: "b",
             input_player2_start: "space",
             input_player2_select: "tab"
           },
