@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-const KEY_MAP = {
+const KEY_MAP_P1 = {
   UP: 'ArrowUp',
   DOWN: 'ArrowDown',
   LEFT: 'ArrowLeft',
@@ -13,6 +13,21 @@ const KEY_MAP = {
   R: 'w',
   START: 'Enter',
   SELECT: 'Shift'
+};
+
+const KEY_MAP_P2 = {
+  UP: 'i',
+  DOWN: 'k',
+  LEFT: 'j',
+  RIGHT: 'l',
+  B: 'm',
+  A: 'n',
+  Y: 'g',
+  X: 'h',
+  L: 'u',
+  R: 'o',
+  START: ' ',
+  SELECT: 'Tab'
 };
 
 const CORE_BUTTONS = {
@@ -33,11 +48,13 @@ export function useVirtualGamepad({
   setMapping,
   setListeningAction,
   emuWrapperRef,
-  listeningActionRef
+  listeningActionRef,
+  playerRole,
+  editingPlayerTab
 }) {
   const mappingReqRef = useRef(null);
   const virtualGamepadReqRef = useRef(null);
-  const buttonStates = useRef({});
+  const buttonStates = useRef({ 1: {}, 2: {} });
   const prevGpButtonsRef = useRef({});
   const prevGpAxesRef = useRef({});
   const [activeDebugButtons, setActiveDebugButtons] = useState([]);
@@ -69,7 +86,13 @@ export function useVirtualGamepad({
             const wasPressed = prevButtons[i] || false;
             
             if (isPressed && !wasPressed && listeningActionRef.current && !mappedThisFrame) {
-              setMapping(prev => ({ ...prev, [listeningActionRef.current]: i }));
+              setMapping(prev => ({
+                ...prev,
+                [editingPlayerTab]: {
+                  ...(prev[editingPlayerTab] || {}),
+                  [listeningActionRef.current]: i
+                }
+              }));
               setListeningAction(null);
               listeningActionRef.current = null;
               mappedThisFrame = true;
@@ -85,7 +108,13 @@ export function useVirtualGamepad({
               const isNegPressed = axisVal < -0.5;
               const wasNegPressed = prevAxes[i * 2] || false;
               if (isNegPressed && !wasNegPressed && listeningActionRef.current && !mappedThisFrame) {
-                setMapping(prev => ({ ...prev, [listeningActionRef.current]: `a${i}-` }));
+                setMapping(prev => ({
+                  ...prev,
+                  [editingPlayerTab]: {
+                    ...(prev[editingPlayerTab] || {}),
+                    [listeningActionRef.current]: `a${i}-`
+                  }
+                }));
                 setListeningAction(null);
                 listeningActionRef.current = null;
                 mappedThisFrame = true;
@@ -96,7 +125,13 @@ export function useVirtualGamepad({
               if (isPosPressed) currentlyPressed.push(`A${i}+`);
               const wasPosPressed = prevAxes[i * 2 + 1] || false;
               if (isPosPressed && !wasPosPressed && listeningActionRef.current && !mappedThisFrame) {
-                setMapping(prev => ({ ...prev, [listeningActionRef.current]: `a${i}+` }));
+                setMapping(prev => ({
+                  ...prev,
+                  [editingPlayerTab]: {
+                    ...(prev[editingPlayerTab] || {}),
+                    [listeningActionRef.current]: `a${i}+`
+                  }
+                }));
                 setListeningAction(null);
                 listeningActionRef.current = null;
                 mappedThisFrame = true;
@@ -116,7 +151,7 @@ export function useVirtualGamepad({
       cancelAnimationFrame(mappingReqRef.current);
     }
     return () => cancelAnimationFrame(mappingReqRef.current);
-  }, [showSettings, setMapping, setListeningAction, listeningActionRef]);
+  }, [showSettings, setMapping, setListeningAction, listeningActionRef, editingPlayerTab]);
 
   // Virtual Gamepad Translator Loop (Runs when game is active)
   useEffect(() => {
@@ -137,7 +172,12 @@ export function useVirtualGamepad({
       else if (key === 'ArrowDown') { code = 'ArrowDown'; keyCode = 40; }
       else if (key === 'ArrowLeft') { code = 'ArrowLeft'; keyCode = 37; }
       else if (key === 'ArrowRight') { code = 'ArrowRight'; keyCode = 39; }
-      else { code = `Key${key.toUpperCase()}`; keyCode = key.toUpperCase().charCodeAt(0); }
+      else if (key === ' ') { code = 'Space'; keyCode = 32; }
+      else if (key === 'Tab') { code = 'Tab'; keyCode = 9; }
+      else { 
+        code = `Key${key.toUpperCase()}`; 
+        keyCode = key.toUpperCase().charCodeAt(0); 
+      }
 
       canvas.dispatchEvent(new KeyboardEvent(type, {
         key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
@@ -149,56 +189,81 @@ export function useVirtualGamepad({
       if (!nostalgistRef.current) return;
 
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      let activeGp = null;
+      const activeGps = [];
       for (const gp of gamepads) {
-        if (gp) { activeGp = gp; break; }
+        if (gp) activeGps.push(gp);
       }
-      
-      if (!activeGp) return;
 
-      activeActions.forEach(action => {
-        const mappedBtnId = mapping[action];
-        let isPressed = false;
-        
-        if (mappedBtnId !== undefined) {
-          if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a')) {
-            // It's an axis mapping (e.g. "a0+", "a1-")
-            const axisIndex = parseInt(mappedBtnId.substring(1, mappedBtnId.length - 1));
-            const direction = mappedBtnId.endsWith('+') ? 1 : -1;
-            if (activeGp.axes && activeGp.axes[axisIndex] !== undefined) {
-              if (direction === 1 && activeGp.axes[axisIndex] > 0.5) isPressed = true;
-              if (direction === -1 && activeGp.axes[axisIndex] < -0.5) isPressed = true;
+      if (activeGps.length === 0) return;
+
+      let p1Gamepad = null;
+      let p2Gamepad = null;
+
+      if (activeGps.length >= 2) {
+        p1Gamepad = activeGps[0];
+        p2Gamepad = activeGps[1];
+      } else {
+        if (playerRole === 1) {
+          p1Gamepad = activeGps[0];
+        } else {
+          p2Gamepad = activeGps[0];
+        }
+      }
+
+      const processPlayerInput = (playerNum, gamepad, keyMap, playerMapping) => {
+        if (!gamepad) return;
+
+        activeActions.forEach(action => {
+          const mappedBtnId = playerMapping[action];
+          let isPressed = false;
+          
+          if (mappedBtnId !== undefined) {
+            if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a')) {
+              const axisIndex = parseInt(mappedBtnId.substring(1, mappedBtnId.length - 1));
+              const direction = mappedBtnId.endsWith('+') ? 1 : -1;
+              if (gamepad.axes && gamepad.axes[axisIndex] !== undefined) {
+                if (direction === 1 && gamepad.axes[axisIndex] > 0.5) isPressed = true;
+                if (direction === -1 && gamepad.axes[axisIndex] < -0.5) isPressed = true;
+              }
+            } else if (gamepad.buttons[mappedBtnId]) {
+              isPressed = gamepad.buttons[mappedBtnId].pressed || gamepad.buttons[mappedBtnId].value > 0.5;
             }
-          } else if (activeGp.buttons[mappedBtnId]) {
-            // It's a normal button mapping
-            isPressed = activeGp.buttons[mappedBtnId].pressed || activeGp.buttons[mappedBtnId].value > 0.5;
           }
-        }
 
-        // Joystick as D-Pad overrides
-        if (useJoystickAsDpad && activeGp.axes.length >= 2) {
-          const threshold = 0.5;
-          if (action === 'UP' && activeGp.axes[1] < -threshold) isPressed = true;
-          if (action === 'DOWN' && activeGp.axes[1] > threshold) isPressed = true;
-          if (action === 'LEFT' && activeGp.axes[0] < -threshold) isPressed = true;
-          if (action === 'RIGHT' && activeGp.axes[0] > threshold) isPressed = true;
-        }
+          // Joystick as D-Pad overrides
+          if (useJoystickAsDpad && gamepad.axes && gamepad.axes.length >= 2) {
+            const threshold = 0.5;
+            if (action === 'UP' && gamepad.axes[1] < -threshold) isPressed = true;
+            if (action === 'DOWN' && gamepad.axes[1] > threshold) isPressed = true;
+            if (action === 'LEFT' && gamepad.axes[0] < -threshold) isPressed = true;
+            if (action === 'RIGHT' && gamepad.axes[0] > threshold) isPressed = true;
+          }
 
-        const wasPressed = buttonStates.current[action];
-        
-        if (isPressed && !wasPressed) {
-          buttonStates.current[action] = true;
-          sendKey(KEY_MAP[action], 'keydown');
-        } else if (!isPressed && wasPressed) {
-          buttonStates.current[action] = false;
-          sendKey(KEY_MAP[action], 'keyup');
-        }
-      });
+          if (!buttonStates.current[playerNum]) {
+            buttonStates.current[playerNum] = {};
+          }
+          const wasPressed = buttonStates.current[playerNum][action] || false;
+          
+          if (isPressed && !wasPressed) {
+            buttonStates.current[playerNum][action] = true;
+            sendKey(keyMap[action], 'keydown');
+          } else if (!isPressed && wasPressed) {
+            buttonStates.current[playerNum][action] = false;
+            sendKey(keyMap[action], 'keyup');
+          }
+        });
+      };
+
+      // Process Player 1 inputs
+      processPlayerInput(1, p1Gamepad, KEY_MAP_P1, mapping[1] || {});
+      
+      // Process Player 2 inputs
+      processPlayerInput(2, p2Gamepad, KEY_MAP_P2, mapping[2] || {});
     };
     
     virtualGamepadReqRef.current = requestAnimationFrame(pollVirtualGamepad);
     return () => cancelAnimationFrame(virtualGamepadReqRef.current);
-  }, [showSettings, loading, mapping, core, useJoystickAsDpad, nostalgistRef, emuWrapperRef]);
+  }, [showSettings, loading, mapping, core, useJoystickAsDpad, nostalgistRef, emuWrapperRef, playerRole]);
 
   return { 
     currentCoreActions: CORE_BUTTONS[core] || CORE_BUTTONS.fceumm,

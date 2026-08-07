@@ -8,9 +8,16 @@ import { useVirtualGamepad } from './useVirtualGamepad';
 import { useSaveStates } from './useSaveStates';
 
 const DEFAULT_MAPPING = {
-  UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
-  B: 0, A: 1, Y: 2, X: 3, L: 4, R: 5,
-  SELECT: 8, START: 9
+  1: {
+    UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
+    B: 0, A: 1, Y: 2, X: 3, L: 4, R: 5,
+    SELECT: 8, START: 9
+  },
+  2: {
+    UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
+    B: 0, A: 1, Y: 2, X: 3, L: 4, R: 5,
+    SELECT: 8, START: 9
+  }
 };
 
 export default function RetroEmulator({ romFile, core, onStop }) {
@@ -24,6 +31,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [mapping, setMapping] = useState(DEFAULT_MAPPING);
   const [listeningAction, setListeningAction] = useState(null);
   const [useJoystickAsDpad, setUseJoystickAsDpad] = useState(true);
+  const [playerRole, setPlayerRole] = useState(1); // 1 or 2
+  const [editingPlayerTab, setEditingPlayerTab] = useState(1); // 1 or 2
   
   const fileInputRef = useRef(null);
   const listeningActionRef = useRef(null);
@@ -51,7 +60,9 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     setMapping,
     setListeningAction,
     emuWrapperRef,
-    listeningActionRef
+    listeningActionRef,
+    playerRole,
+    editingPlayerTab
   });
 
   useEffect(() => {
@@ -80,7 +91,35 @@ export default function RetroEmulator({ romFile, core, onStop }) {
           element: canvas,
           retroarchConfig: {
             pause_nonactive: true,
-            input_autodetect_enable: "false" // Disable native gamepad to avoid double inputs
+            input_autodetect_enable: "false", // Disable native gamepad to avoid double inputs
+            
+            // Player 1 Keyboard Mapping
+            input_player1_up: "up",
+            input_player1_down: "down",
+            input_player1_left: "left",
+            input_player1_right: "right",
+            input_player1_a: "x",
+            input_player1_b: "z",
+            input_player1_x: "s",
+            input_player1_y: "a",
+            input_player1_l: "q",
+            input_player1_r: "w",
+            input_player1_start: "enter",
+            input_player1_select: "rshift",
+
+            // Player 2 Keyboard Mapping
+            input_player2_up: "i",
+            input_player2_down: "k",
+            input_player2_left: "j",
+            input_player2_right: "l",
+            input_player2_a: "n",
+            input_player2_b: "m",
+            input_player2_x: "h",
+            input_player2_y: "g",
+            input_player2_l: "u",
+            input_player2_r: "o",
+            input_player2_start: "space",
+            input_player2_select: "tab"
           },
           resolveCoreJs(coreName) {
             return `https://cdn.jsdelivr.net/gh/arianrhodsandlot/retroarch-emscripten-build@v1.16.0/retroarch/${coreName}_libretro.js`
@@ -241,6 +280,10 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         setListeningAction={setListeningAction}
         mapping={mapping}
         activeDebugButtons={activeDebugButtons}
+        playerRole={playerRole}
+        setPlayerRole={setPlayerRole}
+        editingPlayerTab={editingPlayerTab}
+        setEditingPlayerTab={setEditingPlayerTab}
       />
     </div>
   );

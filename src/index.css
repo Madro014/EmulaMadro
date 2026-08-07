@@ -621,3 +621,57 @@ body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* === MULTIPLAYER SETTINGS MODAL EXTENSIONS === */
+.settings-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.role-selector,
+.tab-container {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+}
+
+.role-btn,
+.tab-btn {
+  flex: 1;
+  text-align: center;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.role-btn:hover,
+.tab-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.role-btn.active,
+.tab-btn.active {
+  color: white;
+  background: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
+
