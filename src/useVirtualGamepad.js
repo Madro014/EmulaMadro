@@ -209,7 +209,8 @@ export function useVirtualGamepad({
 
   // Virtual Gamepad Translator Loop (Runs when game is active)
   useEffect(() => {
-    if (showSettings || !nostalgistRef.current || loading) return;
+    if (showSettings) return;
+    if (multiplayerMode !== 'guest' && (!nostalgistRef.current || loading)) return;
 
     const activeActions = CORE_BUTTONS[core] || CORE_BUTTONS.fceumm;
 
