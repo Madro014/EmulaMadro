@@ -197,9 +197,9 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
     setPeer(newPeer);
   };
 
-  // Guest: Enviar input al Host
   const sendGuestInput = (action, isPressed) => {
     if (multiplayerState.mode === 'guest' && connectionRef.current) {
+      console.log(`[Guest] Enviando input al Host: ${action} -> Presionado: ${isPressed}`);
       connectionRef.current.send({ type: 'input', action, isPressed });
     }
   };

@@ -59,6 +59,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       keyCode = key.toUpperCase().charCodeAt(0); 
     }
 
+    console.log(`[Host] Recibido input de Guest: ${action} -> Presionado: ${isPressed} | Key: ${key} | Code: ${code}`);
+
     const type = isPressed ? 'keydown' : 'keyup';
     canvas.dispatchEvent(new KeyboardEvent(type, {
       key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
