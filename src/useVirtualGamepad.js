@@ -339,7 +339,7 @@ export function useVirtualGamepad({
     
     virtualGamepadReqRef.current = requestAnimationFrame(pollVirtualGamepad);
     return () => cancelAnimationFrame(virtualGamepadReqRef.current);
-  }, [showSettings, loading, mapping, core, useJoystickAsDpad, nostalgistRef, emuWrapperRef, playerRole]);
+  }, [showSettings, loading, mapping, core, useJoystickAsDpad, nostalgistRef, emuWrapperRef, playerRole, multiplayerMode, sendGuestInput]);
 
   return { 
     currentCoreActions: CORE_BUTTONS[core] || CORE_BUTTONS.fceumm,
