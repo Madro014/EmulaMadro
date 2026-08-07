@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, RefreshCw, Users } from 'lucide-react';
+import { supabase } from './supabaseClient';
 
 export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRoom }) {
   const [activeTab, setActiveTab] = useState('ingresar');
@@ -23,6 +24,13 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
     }
   }, [show, activeTab, generatedRoomId]);
 
+  // Refresh rooms on mount or tab change
+  useEffect(() => {
+    if (show && activeTab === 'ingresar') {
+      refreshRooms();
+    }
+  }, [show, activeTab]);
+
   if (!show) return null;
 
   const handleCopyId = () => {
@@ -37,17 +45,19 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
     }
   };
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (!createRoomName.trim()) {
       alert('Por favor, ingresa un nombre para la sala.');
       return;
     }
+    
+    // We will save this room to Supabase inside useMultiplayer.js once the PeerJS connection is ready,
+    // so we just pass the info back up.
     onCreateRoom({
       id: generatedRoomId,
       name: createRoomName,
       password: createPassword
     });
-    onClose();
   };
 
   const handleJoinRoom = () => {
@@ -59,20 +69,29 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
       id: joinRoomId,
       password: joinPassword
     });
-    onClose();
   };
 
-  const refreshRooms = () => {
+  const refreshRooms = async () => {
     setIsRefreshing(true);
-    // Mocking a network request for now
-    setTimeout(() => {
-      setAvailableRooms([
-        { id: 'SALA-A1B2C3', name: 'Sala de Mario', hasPassword: true },
-        { id: 'SALA-Z9Y8X7', name: 'Torneo Mortal Kombat', hasPassword: false },
-        { id: 'SALA-QWE456', name: 'Zelda Coop', hasPassword: true }
-      ]);
-      setIsRefreshing(false);
-    }, 800);
+    try {
+      // Fetch rooms created in the last hour to prevent stale rooms
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .gte('created_at', oneHourAgo)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching rooms:', error);
+        alert('Error al buscar salas.');
+      } else {
+        setAvailableRooms(data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsRefreshing(false);
   };
 
   return (
@@ -149,10 +168,27 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
         {activeTab === 'ingresar' && (
           <div className="settings-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <span className="section-title" style={{ margin: 0 }}>Salas Disponibles</span>
-              <button onClick={refreshRooms} className="icon-btn" disabled={isRefreshing} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-                <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} /> {isRefreshing ? 'Buscando...' : 'Refrescar'}
-              </button>
+              <h3 style={{ margin: 0, color: 'white' }}>Salas Disponibles</h3>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  className="settings-btn" 
+                  onClick={async () => {
+                    await supabase.from('rooms').delete().neq('id', 'dummy');
+                    refreshRooms();
+                  }}
+                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem', background: '#ef4444' }}
+                >
+                  Limpiar Fantasmas
+                </button>
+                <button 
+                  className="settings-btn" 
+                  onClick={refreshRooms}
+                  disabled={isRefreshing}
+                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}
+                >
+                  <RefreshCw size={14} className={isRefreshing ? "spin" : ""} /> Refrescar
+                </button>
+              </div>
             </div>
 
             <div className="room-list">

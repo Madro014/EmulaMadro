@@ -15,18 +15,18 @@ const KEY_MAP_P1 = {
   SELECT: 'Shift'
 };
 
-const KEY_MAP_P2 = {
+export const KEY_MAP_P2 = {
   UP: 'i',
   DOWN: 'k',
   LEFT: 'j',
   RIGHT: 'l',
-  B: 'm',
-  A: 'n',
+  B: 'n',
+  A: 'm',
   Y: 'g',
   X: 'h',
   L: 'u',
   R: 'o',
-  START: ' ',
+  START: 'Space',
   SELECT: 'Tab'
 };
 
@@ -50,7 +50,9 @@ export function useVirtualGamepad({
   emuWrapperRef,
   listeningActionRef,
   playerRole,
-  editingPlayerTab
+  editingPlayerTab,
+  multiplayerMode,
+  sendGuestInput
 }) {
   const mappingReqRef = useRef(null);
   const virtualGamepadReqRef = useRef(null);
@@ -238,20 +240,21 @@ export function useVirtualGamepad({
 
     const pollVirtualGamepad = () => {
       virtualGamepadReqRef.current = requestAnimationFrame(pollVirtualGamepad);
-      if (!nostalgistRef.current) return;
+      
+      if (multiplayerMode !== 'guest' && !nostalgistRef.current) return;
 
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       const activeGps = [];
-      for (const gp of gamepads) {
-        if (gp) activeGps.push(gp);
+      for (let i = 0; i < gamepads.length; i++) {
+        if (gamepads[i] && gamepads[i].connected) activeGps.push(gamepads[i]);
       }
 
-      let p1Gamepad = null;
-      let p2Gamepad = null;
+      let p1Gamepad = activeGps[0];
+      let p2Gamepad = activeGps[1];
 
-      if (activeGps.length >= 2) {
-        p1Gamepad = activeGps[0];
-        p2Gamepad = activeGps[1];
+      if (multiplayerMode === 'guest' && activeGps[0]) {
+        p1Gamepad = null;
+        p2Gamepad = activeGps[0];
       } else if (activeGps.length === 1) {
         if (playerRole === 1) {
           p1Gamepad = activeGps[0];
@@ -267,14 +270,12 @@ export function useVirtualGamepad({
           
           if (mappedBtnId !== undefined) {
             if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('key:')) {
-              // It's a mapped keyboard key (e.g. "key:KeyW", "key:ArrowUp")
               const keyId = mappedBtnId.replace('key:', '');
               if (activeKeyboardKeysRef.current.has(keyId)) {
                 isPressed = true;
               }
             } else if (gamepad) {
               if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a')) {
-                // It's an axis mapping (e.g. "a0+", "a1-")
                 const axisIndex = parseInt(mappedBtnId.substring(1, mappedBtnId.length - 1));
                 const direction = mappedBtnId.endsWith('+') ? 1 : -1;
                 if (gamepad.axes && gamepad.axes[axisIndex] !== undefined) {
@@ -282,19 +283,24 @@ export function useVirtualGamepad({
                   if (direction === -1 && gamepad.axes[axisIndex] < -0.5) isPressed = true;
                 }
               } else if (gamepad.buttons[mappedBtnId]) {
-                // It's a normal button mapping
                 isPressed = gamepad.buttons[mappedBtnId].pressed || gamepad.buttons[mappedBtnId].value > 0.5;
               }
             }
           }
 
-          // Joystick as D-Pad overrides (only if gamepad is present)
           if (useJoystickAsDpad && gamepad && gamepad.axes && gamepad.axes.length >= 2) {
             const threshold = 0.5;
             if (action === 'UP' && gamepad.axes[1] < -threshold) isPressed = true;
             if (action === 'DOWN' && gamepad.axes[1] > threshold) isPressed = true;
             if (action === 'LEFT' && gamepad.axes[0] < -threshold) isPressed = true;
-            if (action === 'RIGHT' && gamepad.axes[0] > threshold) isPressed = true;
+            if (typeof mappedBtnId === 'number' && gamepad && gamepad.buttons[mappedBtnId]) {
+              isPressed = gamepad.buttons[mappedBtnId].pressed;
+            } else if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a') && gamepad) {
+              const axisId = parseInt(mappedBtnId.replace('a', ''), 10);
+              const isPos = mappedBtnId.endsWith('+');
+              const val = gamepad.axes[axisId];
+              isPressed = isPos ? val > 0.5 : val < -0.5;
+            }
           }
 
           if (!buttonStates.current[playerNum]) {
@@ -304,19 +310,31 @@ export function useVirtualGamepad({
           
           if (isPressed && !wasPressed) {
             buttonStates.current[playerNum][action] = true;
-            sendKey(keyMap[action], 'keydown');
+            if (multiplayerMode === 'guest' && sendGuestInput) {
+              sendGuestInput(action, true);
+            } else if (multiplayerMode !== 'guest') {
+              sendKey(keyMap[action], 'keydown');
+            }
           } else if (!isPressed && wasPressed) {
             buttonStates.current[playerNum][action] = false;
-            sendKey(keyMap[action], 'keyup');
+            if (multiplayerMode === 'guest' && sendGuestInput) {
+              sendGuestInput(action, false);
+            } else if (multiplayerMode !== 'guest') {
+              sendKey(keyMap[action], 'keyup');
+            }
           }
         });
       };
 
-      // Process Player 1 inputs
-      processPlayerInput(1, p1Gamepad, KEY_MAP_P1, mapping[1] || {});
+      // Process Player 1 inputs (Host always controls P1)
+      if (multiplayerMode !== 'guest') {
+        processPlayerInput(1, p1Gamepad, KEY_MAP_P1, mapping[1] || {});
+      }
       
-      // Process Player 2 inputs
-      processPlayerInput(2, p2Gamepad, KEY_MAP_P2, mapping[2] || {});
+      // Process Player 2 inputs (Host should not control P2 locally if online)
+      if (multiplayerMode !== 'host') {
+        processPlayerInput(2, p2Gamepad, KEY_MAP_P2, mapping[2] || {});
+      }
     };
     
     virtualGamepadReqRef.current = requestAnimationFrame(pollVirtualGamepad);

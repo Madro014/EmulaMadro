@@ -37,21 +37,20 @@ export default function GamepadSettingsModal({
   editingPlayerTab,
   setEditingPlayerTab,
   connectedGamepadCount,
-  playMode,
-  setPlayMode
+  multiplayerMode
 }) {
   if (!showSettings) return null;
 
   const getP1Device = () => {
     if (connectedGamepadCount >= 2) return 'Mando Físico (Mando 0)';
-    if (connectedGamepadCount === 1 && playerRole === 1 && playMode === 'online') return 'Mando Físico (Mando 0)';
-    if (connectedGamepadCount === 1 && playMode === 'local') return 'Mando Físico (Mando 0)';
+    if (connectedGamepadCount === 1 && playerRole === 1 && multiplayerMode !== 'local') return 'Mando Físico (Mando 0)';
+    if (connectedGamepadCount === 1 && multiplayerMode === 'local') return 'Mando Físico (Mando 0)';
     return 'Teclado (Flechas / Z, X, Shift, Enter)';
   };
 
   const getP2Device = () => {
     if (connectedGamepadCount >= 2) return 'Mando Físico (Mando 1)';
-    if (connectedGamepadCount === 1 && playerRole === 2 && playMode === 'online') return 'Mando Físico (Mando 0)';
+    if (connectedGamepadCount === 1 && playerRole === 2 && multiplayerMode !== 'local') return 'Mando Físico (Mando 0)';
     return 'Teclado (I, K, J, L / N, M, Tab, Espacio)';
   };
 
@@ -66,30 +65,13 @@ export default function GamepadSettingsModal({
           <button onClick={closeSettings} aria-label="Cerrar"><X size={20}/></button>
         </div>
 
-        {/* --- APARTADO 1: MODO DE JUEGO (PREGUNTA INICIAL) --- */}
+        {/* --- APARTADO 1: MODO DE JUEGO ACTUAL --- */}
         <div className="settings-section">
-          <span className="section-title">¿Cómo van a jugar?</span>
-          <div className="playmode-selector">
-            <button 
-              className={`playmode-btn ${playMode === 'local' ? 'active' : ''}`}
-              onClick={() => {
-                setPlayMode('local');
-                setEditingPlayerTab(1); // Default to player 1 tab
-              }}
-            >
-              <strong>Misma PC (Local)</strong>
-              <span>2 personas en esta PC</span>
-            </button>
-            <button 
-              className={`playmode-btn ${playMode === 'online' ? 'active' : ''}`}
-              onClick={() => {
-                setPlayMode('online');
-                setEditingPlayerTab(playerRole); // Sync tab with role
-              }}
-            >
-              <strong>Multiconexión (Online)</strong>
-              <span>Cada quien en su propia PC</span>
-            </button>
+          <span className="section-title">Modo Actual:</span>
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.8rem', borderRadius: '8px', fontSize: '0.85rem' }}>
+            {multiplayerMode === 'local' && <span>🏠 <strong>Local</strong> (2 personas en esta PC)</span>}
+            {multiplayerMode === 'host' && <span>🌐 <strong>Online</strong> - Eres el Anfitrión (Jugador 1)</span>}
+            {multiplayerMode === 'guest' && <span>🌐 <strong>Online</strong> - Eres el Invitado (Jugador 2)</span>}
           </div>
         </div>
 
@@ -113,54 +95,28 @@ export default function GamepadSettingsModal({
           </div>
         </div>
 
-        {/* --- APARTADO 3: CONFIGURACIÓN SEGÚN EL MODO DE JUEGO --- */}
-        {playMode === 'online' ? (
-          /* MODO MULTICONEXIÓN: Mostrar Mi Rol y mapear solo mi Rol */
-          <>
-            <div className="settings-section">
-              <span className="section-title">Mi Rol en esta PC:</span>
-              <div className="role-selector">
-                <button 
-                  className={`role-btn ${playerRole === 1 ? 'active' : ''}`}
-                  onClick={() => setPlayerRole(1)}
-                >
-                  Soy Jugador 1 (Host)
-                </button>
-                <button 
-                  className={`role-btn ${playerRole === 2 ? 'active' : ''}`}
-                  onClick={() => setPlayerRole(2)}
-                >
-                  Soy Jugador 2 (Invitado)
-                </button>
-              </div>
-            </div>
-
-            <div className="settings-section">
-              <span className="section-title" style={{ color: '#10b981' }}>
-                📍 Mapeando tus controles como: <strong>Jugador {playerRole}</strong>
-              </span>
-            </div>
-          </>
-        ) : (
-          /* MODO LOCAL: Mostrar pestañas de mapeo para ambos jugadores */
-          <div className="settings-section">
-            <span className="section-title">Mapear Controles para:</span>
-            <div className="tab-container">
-              <button 
-                className={`tab-btn ${editingPlayerTab === 1 ? 'active' : ''}`}
-                onClick={() => setEditingPlayerTab(1)}
-              >
-                Jugador 1
-              </button>
-              <button 
-                className={`tab-btn ${editingPlayerTab === 2 ? 'active' : ''}`}
-                onClick={() => setEditingPlayerTab(2)}
-              >
-                Jugador 2
-              </button>
-            </div>
+        {/* --- APARTADO 3: PESTAÑAS DE MAPEO --- */}
+        <div className="settings-section">
+          <span className="section-title">Mapear Controles para:</span>
+          <div className="tab-container">
+            <button 
+              className={`tab-btn ${(multiplayerMode === 'local' ? editingPlayerTab === 1 : multiplayerMode === 'host') ? 'active' : ''}`}
+              onClick={() => { if (multiplayerMode === 'local') setEditingPlayerTab(1); }}
+              disabled={multiplayerMode === 'guest'}
+              style={{ opacity: multiplayerMode === 'guest' ? 0.3 : 1 }}
+            >
+              Jugador 1
+            </button>
+            <button 
+              className={`tab-btn ${(multiplayerMode === 'local' ? editingPlayerTab === 2 : multiplayerMode === 'guest') ? 'active' : ''}`}
+              onClick={() => { if (multiplayerMode === 'local') setEditingPlayerTab(2); }}
+              disabled={multiplayerMode === 'host'}
+              style={{ opacity: multiplayerMode === 'host' ? 0.3 : 1 }}
+            >
+              Jugador 2
+            </button>
           </div>
-        )}
+        </div>
 
         {activeDebugButtons && (
           <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.5rem', borderRadius: '4px', marginBottom: '1rem', color: '#10b981', fontSize: '0.9rem' }}>
