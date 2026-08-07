@@ -44,6 +44,23 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const videoRef = useRef(null);
 
   const onGuestInputReceived = useCallback((action, isPressed) => {
+    // 1. Enfoque nativo: Inyectar directo al core de RetroArch en el Puerto 2 (índice 1)
+    const retro = nostalgistRef.current?.retroarch;
+    if (retro?.core?.input) {
+      const BUTTON_MAP = {
+        'B': 0, 'Y': 1, 'SELECT': 2, 'START': 3,
+        'UP': 4, 'DOWN': 5, 'LEFT': 6, 'RIGHT': 7,
+        'A': 8, 'X': 9, 'L': 10, 'R': 11
+      };
+      const btn = BUTTON_MAP[action];
+      if (btn !== undefined) {
+        retro.core.input(1, btn, isPressed);
+        console.log(`[Host] Inyectado nativo Player 2: ${action} -> ${isPressed}`);
+        return; // Éxito nativo, no necesitamos propagar eventos falsos de teclado
+      }
+    }
+
+    // 2. Fallback: Eventos de teclado (si el core no soporta la API nativa)
     const key = KEY_MAP_P2[action];
     if (!key) return;
 
@@ -56,7 +73,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       keyCode = key.toUpperCase().charCodeAt(0); 
     }
 
-    console.log(`[Host] Recibido input de Guest: ${action} -> Presionado: ${isPressed} | Key: ${key} | Code: ${code}`);
+    console.log(`[Host] Fallback teclado Player 2: ${action} -> Presionado: ${isPressed} | Key: ${key}`);
 
     const type = isPressed ? 'keydown' : 'keyup';
     const event = new KeyboardEvent(type, {
