@@ -33,9 +33,35 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [useJoystickAsDpad, setUseJoystickAsDpad] = useState(true);
   const [playerRole, setPlayerRole] = useState(1); // 1 or 2
   const [editingPlayerTab, setEditingPlayerTab] = useState(1); // 1 or 2
+  const [connectedGamepadCount, setConnectedGamepadCount] = useState(0);
+  const [playMode, setPlayMode] = useState('local'); // 'local' or 'online'
   
   const fileInputRef = useRef(null);
   const listeningActionRef = useRef(null);
+
+  useEffect(() => {
+    if (playMode === 'online') {
+      setEditingPlayerTab(playerRole);
+    }
+  }, [playMode, playerRole]);
+
+  useEffect(() => {
+    const updateCount = () => {
+      const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+      let count = 0;
+      for (const gp of gps) {
+        if (gp) count++;
+      }
+      setConnectedGamepadCount(count);
+    };
+    window.addEventListener('gamepadconnected', updateCount);
+    window.addEventListener('gamepaddisconnected', updateCount);
+    updateCount();
+    return () => {
+      window.removeEventListener('gamepadconnected', updateCount);
+      window.removeEventListener('gamepaddisconnected', updateCount);
+    };
+  }, []);
 
   const {
     handleQuickSave,
@@ -284,6 +310,9 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         setPlayerRole={setPlayerRole}
         editingPlayerTab={editingPlayerTab}
         setEditingPlayerTab={setEditingPlayerTab}
+        connectedGamepadCount={connectedGamepadCount}
+        playMode={playMode}
+        setPlayMode={setPlayMode}
       />
     </div>
   );

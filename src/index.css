@@ -522,17 +522,24 @@ body {
   padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid var(--card-border);
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
+  width: 95%;
+  max-width: 520px;
+  max-height: 85vh;
   overflow-y: auto;
+  position: relative;
 }
 
 .modal-header {
+  position: sticky;
+  top: -1.5rem;
+  background: var(--bg-color);
+  z-index: 50;
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
+  margin: -1.5rem -1.5rem 1rem -1.5rem;
+  border-bottom: 1px solid var(--card-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
 }
 
 .modal-header button {
@@ -540,10 +547,13 @@ body {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
 }
 
 .modal-header button:hover {
   color: white;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .modal-desc {
@@ -674,4 +684,55 @@ body {
   background: var(--accent-color);
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
 }
+
+/* === PLAYMODE SELECTOR STYLE === */
+.playmode-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.playmode-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.playmode-btn strong {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+}
+
+.playmode-btn span {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.playmode-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.playmode-btn.active {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: var(--accent-color);
+  color: white;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.2);
+}
+
+.playmode-btn.active strong {
+  color: #60a5fa;
+}
+
 

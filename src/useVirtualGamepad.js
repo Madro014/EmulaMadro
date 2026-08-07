@@ -57,9 +57,61 @@ export function useVirtualGamepad({
   const buttonStates = useRef({ 1: {}, 2: {} });
   const prevGpButtonsRef = useRef({});
   const prevGpAxesRef = useRef({});
+  const activeKeyboardKeysRef = useRef(new Set());
   const [activeDebugButtons, setActiveDebugButtons] = useState([]);
 
-  // Poll for mapping when modal is open
+  // Track keyboard keys pressed globally
+  useEffect(() => {
+    const handleGameKeyDown = (e) => {
+      activeKeyboardKeysRef.current.add(e.code);
+    };
+    const handleGameKeyUp = (e) => {
+      activeKeyboardKeysRef.current.delete(e.code);
+    };
+
+    window.addEventListener('keydown', handleGameKeyDown);
+    window.addEventListener('keyup', handleGameKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleGameKeyDown);
+      window.removeEventListener('keyup', handleGameKeyUp);
+    };
+  }, []);
+
+  // Listen to keyboard press for key mapping when modal is open and listeningAction is set
+  useEffect(() => {
+    if (!showSettings) return;
+
+    const handleMapKeyDown = (e) => {
+      if (!listeningActionRef.current) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setListeningAction(null);
+        listeningActionRef.current = null;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const keyId = `key:${e.code}`;
+      setMapping(prev => ({
+        ...prev,
+        [editingPlayerTab]: {
+          ...(prev[editingPlayerTab] || {}),
+          [listeningActionRef.current]: keyId
+        }
+      }));
+
+      setListeningAction(null);
+      listeningActionRef.current = null;
+    };
+
+    window.addEventListener('keydown', handleMapKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleMapKeyDown, { capture: true });
+  }, [showSettings, setMapping, setListeningAction, listeningActionRef, editingPlayerTab]);
+
+  // Poll for mapping when modal is open (Gamepad)
   useEffect(() => {
     if (showSettings) {
       const pollForMapping = () => {
@@ -194,15 +246,13 @@ export function useVirtualGamepad({
         if (gp) activeGps.push(gp);
       }
 
-      if (activeGps.length === 0) return;
-
       let p1Gamepad = null;
       let p2Gamepad = null;
 
       if (activeGps.length >= 2) {
         p1Gamepad = activeGps[0];
         p2Gamepad = activeGps[1];
-      } else {
+      } else if (activeGps.length === 1) {
         if (playerRole === 1) {
           p1Gamepad = activeGps[0];
         } else {
@@ -211,27 +261,35 @@ export function useVirtualGamepad({
       }
 
       const processPlayerInput = (playerNum, gamepad, keyMap, playerMapping) => {
-        if (!gamepad) return;
-
         activeActions.forEach(action => {
           const mappedBtnId = playerMapping[action];
           let isPressed = false;
           
           if (mappedBtnId !== undefined) {
-            if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a')) {
-              const axisIndex = parseInt(mappedBtnId.substring(1, mappedBtnId.length - 1));
-              const direction = mappedBtnId.endsWith('+') ? 1 : -1;
-              if (gamepad.axes && gamepad.axes[axisIndex] !== undefined) {
-                if (direction === 1 && gamepad.axes[axisIndex] > 0.5) isPressed = true;
-                if (direction === -1 && gamepad.axes[axisIndex] < -0.5) isPressed = true;
+            if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('key:')) {
+              // It's a mapped keyboard key (e.g. "key:KeyW", "key:ArrowUp")
+              const keyId = mappedBtnId.replace('key:', '');
+              if (activeKeyboardKeysRef.current.has(keyId)) {
+                isPressed = true;
               }
-            } else if (gamepad.buttons[mappedBtnId]) {
-              isPressed = gamepad.buttons[mappedBtnId].pressed || gamepad.buttons[mappedBtnId].value > 0.5;
+            } else if (gamepad) {
+              if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a')) {
+                // It's an axis mapping (e.g. "a0+", "a1-")
+                const axisIndex = parseInt(mappedBtnId.substring(1, mappedBtnId.length - 1));
+                const direction = mappedBtnId.endsWith('+') ? 1 : -1;
+                if (gamepad.axes && gamepad.axes[axisIndex] !== undefined) {
+                  if (direction === 1 && gamepad.axes[axisIndex] > 0.5) isPressed = true;
+                  if (direction === -1 && gamepad.axes[axisIndex] < -0.5) isPressed = true;
+                }
+              } else if (gamepad.buttons[mappedBtnId]) {
+                // It's a normal button mapping
+                isPressed = gamepad.buttons[mappedBtnId].pressed || gamepad.buttons[mappedBtnId].value > 0.5;
+              }
             }
           }
 
-          // Joystick as D-Pad overrides
-          if (useJoystickAsDpad && gamepad.axes && gamepad.axes.length >= 2) {
+          // Joystick as D-Pad overrides (only if gamepad is present)
+          if (useJoystickAsDpad && gamepad && gamepad.axes && gamepad.axes.length >= 2) {
             const threshold = 0.5;
             if (action === 'UP' && gamepad.axes[1] < -threshold) isPressed = true;
             if (action === 'DOWN' && gamepad.axes[1] > threshold) isPressed = true;
