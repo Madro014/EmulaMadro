@@ -3,6 +3,7 @@ import { Nostalgist } from 'nostalgist';
 import { Gamepad2, Maximize, Loader2, Settings, X, Save, Upload, HardDriveDownload } from 'lucide-react';
 import { saveState as beSaveState, loadState as beLoadState, saveSram, loadSram } from '../backend/saveManager';
 import GamepadSettingsModal from './GamepadSettingsModal';
+import MultiplayerModal from './MultiplayerModal';
 import EmulatorToolbar from './EmulatorToolbar';
 import { useVirtualGamepad } from './useVirtualGamepad';
 import { useSaveStates } from './useSaveStates';
@@ -28,6 +29,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
 
   const [gamepadStatus, setGamepadStatus] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
   const [mapping, setMapping] = useState(DEFAULT_MAPPING);
   const [listeningAction, setListeningAction] = useState(null);
   const [useJoystickAsDpad, setUseJoystickAsDpad] = useState(true);
@@ -285,7 +287,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       </div>
       
       <EmulatorToolbar 
-        openSettings={openSettings}
+        openSettings={() => setShowSettings(true)}
+        openMultiplayer={() => setShowMultiplayerModal(true)}
         toggleFullscreen={toggleFullscreen}
         handleQuickSave={handleQuickSave}
         handleLoadStateBrowser={handleLoadStateBrowser}
@@ -298,7 +301,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
 
       <GamepadSettingsModal 
         showSettings={showSettings}
-        closeSettings={closeSettings}
+        closeSettings={() => setShowSettings(false)}
         useJoystickAsDpad={useJoystickAsDpad}
         setUseJoystickAsDpad={setUseJoystickAsDpad}
         currentCoreActions={currentCoreActions}
@@ -313,6 +316,19 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         connectedGamepadCount={connectedGamepadCount}
         playMode={playMode}
         setPlayMode={setPlayMode}
+      />
+
+      <MultiplayerModal
+        show={showMultiplayerModal}
+        onClose={() => setShowMultiplayerModal(false)}
+        onCreateRoom={(data) => {
+          console.log('Room created:', data);
+          alert(`¡Sala ${data.name} creada exitosamente!\nEsperando jugadores...`);
+        }}
+        onJoinRoom={(data) => {
+          console.log('Joining room:', data);
+          alert(`Conectando a la sala ${data.id}...`);
+        }}
       />
     </div>
   );

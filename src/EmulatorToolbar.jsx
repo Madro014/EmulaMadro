@@ -1,8 +1,9 @@
 import React from 'react';
-import { Settings, Maximize, Save, Upload, HardDriveDownload } from 'lucide-react';
+import { Settings, Maximize, Save, Upload, HardDriveDownload, Users } from 'lucide-react';
 
 export default function EmulatorToolbar({
   openSettings,
+  openMultiplayer,
   toggleFullscreen,
   handleQuickSave,
   handleLoadStateBrowser,
@@ -14,6 +15,9 @@ export default function EmulatorToolbar({
     <div className="controls-hint" style={{ flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
       <button className="settings-btn" onClick={openSettings}>
         <Settings size={18} /> Mapeo
+      </button>
+      <button className="settings-btn" onClick={openMultiplayer} style={{ background: '#3b82f6' }}>
+        <Users size={18} /> Multijugador
       </button>
       <button className="settings-btn" onClick={toggleFullscreen}>
         <Maximize size={18} /> Pantalla Completa

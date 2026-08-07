@@ -736,3 +736,123 @@ body {
 }
 
 
+
+ / *   M u l t i p l a y e r   M o d a l   S t y l e s   * / 
+ . i n p u t - g r o u p   { 
+     d i s p l a y :   f l e x ; 
+     f l e x - d i r e c t i o n :   c o l u m n ; 
+     g a p :   0 . 5 r e m ; 
+     m a r g i n - b o t t o m :   1 r e m ; 
+ } 
+ 
+ . i n p u t - g r o u p   l a b e l   { 
+     f o n t - s i z e :   0 . 8 5 r e m ; 
+     c o l o r :   v a r ( - - t e x t - s e c o n d a r y ) ; 
+ } 
+ 
+ . i n p u t - g r o u p   i n p u t   { 
+     p a d d i n g :   0 . 8 r e m ; 
+     b o r d e r - r a d i u s :   6 p x ; 
+     b o r d e r :   1 p x   s o l i d   v a r ( - - c a r d - b o r d e r ) ; 
+     b a c k g r o u n d :   v a r ( - - b g - c o l o r ) ; 
+     c o l o r :   v a r ( - - t e x t - c o l o r ) ; 
+     f o n t - s i z e :   0 . 9 5 r e m ; 
+     o u t l i n e :   n o n e ; 
+ } 
+ 
+ . i n p u t - g r o u p   i n p u t : f o c u s   { 
+     b o r d e r - c o l o r :   # 3 b 8 2 f 6 ; 
+     b o x - s h a d o w :   0   0   0   2 p x   r g b a ( 5 9 ,   1 3 0 ,   2 4 6 ,   0 . 2 ) ; 
+ } 
+ 
+ . i n p u t - h i n t   { 
+     f o n t - s i z e :   0 . 7 5 r e m ; 
+     c o l o r :   v a r ( - - t e x t - s e c o n d a r y ) ; 
+     t e x t - a l i g n :   r i g h t ; 
+ } 
+ 
+ . r o o m - l i s t   { 
+     d i s p l a y :   f l e x ; 
+     f l e x - d i r e c t i o n :   c o l u m n ; 
+     g a p :   0 . 5 r e m ; 
+     m a x - h e i g h t :   2 0 0 p x ; 
+     o v e r f l o w - y :   a u t o ; 
+     b o r d e r :   1 p x   s o l i d   v a r ( - - c a r d - b o r d e r ) ; 
+     b o r d e r - r a d i u s :   8 p x ; 
+     p a d d i n g :   0 . 5 r e m ; 
+     b a c k g r o u n d :   r g b a ( 0 , 0 , 0 , 0 . 2 ) ; 
+ } 
+ 
+ . r o o m - c a r d   { 
+     d i s p l a y :   f l e x ; 
+     j u s t i f y - c o n t e n t :   s p a c e - b e t w e e n ; 
+     a l i g n - i t e m s :   c e n t e r ; 
+     p a d d i n g :   0 . 8 r e m ; 
+     b a c k g r o u n d :   v a r ( - - c a r d - b g ) ; 
+     b o r d e r :   1 p x   s o l i d   v a r ( - - c a r d - b o r d e r ) ; 
+     b o r d e r - r a d i u s :   6 p x ; 
+     c u r s o r :   p o i n t e r ; 
+     t r a n s i t i o n :   a l l   0 . 2 s   e a s e ; 
+ } 
+ 
+ . r o o m - c a r d : h o v e r   { 
+     b o r d e r - c o l o r :   # 3 b 8 2 f 6 ; 
+     b a c k g r o u n d :   r g b a ( 5 9 ,   1 3 0 ,   2 4 6 ,   0 . 1 ) ; 
+ } 
+ 
+ . r o o m - i n f o   { 
+     d i s p l a y :   f l e x ; 
+     f l e x - d i r e c t i o n :   c o l u m n ; 
+     g a p :   0 . 2 r e m ; 
+ } 
+ 
+ . r o o m - n a m e   { 
+     f o n t - s i z e :   0 . 9 r e m ; 
+     c o l o r :   v a r ( - - t e x t - c o l o r ) ; 
+ } 
+ 
+ . r o o m - i d   { 
+     f o n t - s i z e :   0 . 7 5 r e m ; 
+     c o l o r :   v a r ( - - t e x t - s e c o n d a r y ) ; 
+     f o n t - f a m i l y :   m o n o s p a c e ; 
+ } 
+ 
+ . r o o m - l o c k   { 
+     f o n t - s i z e :   1 r e m ; 
+ } 
+ 
+ . e m p t y - s t a t e   { 
+     t e x t - a l i g n :   c e n t e r ; 
+     p a d d i n g :   2 r e m   1 r e m ; 
+     c o l o r :   v a r ( - - t e x t - s e c o n d a r y ) ; 
+     f o n t - s i z e :   0 . 9 r e m ; 
+ } 
+ 
+ . i c o n - b t n   { 
+     b a c k g r o u n d :   v a r ( - - b g - c o l o r ) ; 
+     b o r d e r :   1 p x   s o l i d   v a r ( - - c a r d - b o r d e r ) ; 
+     c o l o r :   v a r ( - - t e x t - c o l o r ) ; 
+     b o r d e r - r a d i u s :   6 p x ; 
+     c u r s o r :   p o i n t e r ; 
+     t r a n s i t i o n :   a l l   0 . 2 s   e a s e ; 
+ } 
+ 
+ . i c o n - b t n : h o v e r : n o t ( : d i s a b l e d )   { 
+     b a c k g r o u n d :   v a r ( - - c a r d - b g ) ; 
+     b o r d e r - c o l o r :   # 3 b 8 2 f 6 ; 
+ } 
+ 
+ . i c o n - b t n : d i s a b l e d   { 
+     o p a c i t y :   0 . 5 ; 
+     c u r s o r :   n o t - a l l o w e d ; 
+ } 
+ 
+ @ k e y f r a m e s   s p i n   { 
+     1 0 0 %   {   t r a n s f o r m :   r o t a t e ( 3 6 0 d e g ) ;   } 
+ } 
+ 
+ . s p i n   { 
+     a n i m a t i o n :   s p i n   1 s   l i n e a r   i n f i n i t e ; 
+ } 
+  
+ 
