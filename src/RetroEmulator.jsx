@@ -44,9 +44,6 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const videoRef = useRef(null);
 
   const onGuestInputReceived = useCallback((action, isPressed) => {
-    const canvas = emuWrapperRef.current?.querySelector('canvas');
-    if (!canvas) return;
-
     const key = KEY_MAP_P2[action];
     if (!key) return;
 
@@ -62,9 +59,14 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     console.log(`[Host] Recibido input de Guest: ${action} -> Presionado: ${isPressed} | Key: ${key} | Code: ${code}`);
 
     const type = isPressed ? 'keydown' : 'keyup';
-    canvas.dispatchEvent(new KeyboardEvent(type, {
+    const event = new KeyboardEvent(type, {
       key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
-    }));
+    });
+
+    window.dispatchEvent(event);
+    document.dispatchEvent(event);
+    const canvas = emuWrapperRef.current?.querySelector('canvas');
+    if (canvas) canvas.dispatchEvent(event);
   }, []);
 
   const {

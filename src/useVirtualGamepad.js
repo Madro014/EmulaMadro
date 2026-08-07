@@ -215,9 +215,6 @@ export function useVirtualGamepad({
     const activeActions = CORE_BUTTONS[core] || CORE_BUTTONS.fceumm;
 
     const sendKey = (key, type) => {
-      const canvas = emuWrapperRef.current?.querySelector('canvas');
-      if (!canvas) return;
-      
       let code = key;
       let keyCode = 0;
       
@@ -234,9 +231,14 @@ export function useVirtualGamepad({
         keyCode = key.toUpperCase().charCodeAt(0); 
       }
 
-      canvas.dispatchEvent(new KeyboardEvent(type, {
+      const event = new KeyboardEvent(type, {
         key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
-      }));
+      });
+
+      window.dispatchEvent(event);
+      document.dispatchEvent(event);
+      const canvas = emuWrapperRef.current?.querySelector('canvas');
+      if (canvas) canvas.dispatchEvent(event);
     };
 
     const pollVirtualGamepad = () => {
