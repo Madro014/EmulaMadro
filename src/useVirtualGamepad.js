@@ -71,11 +71,11 @@ export function useVirtualGamepad({
       activeKeyboardKeysRef.current.delete(e.code);
     };
 
-    window.addEventListener('keydown', handleGameKeyDown);
-    window.addEventListener('keyup', handleGameKeyUp);
+    window.addEventListener('keydown', handleGameKeyDown, { capture: true });
+    window.addEventListener('keyup', handleGameKeyUp, { capture: true });
     return () => {
-      window.removeEventListener('keydown', handleGameKeyDown);
-      window.removeEventListener('keyup', handleGameKeyUp);
+      window.removeEventListener('keydown', handleGameKeyDown, { capture: true });
+      window.removeEventListener('keyup', handleGameKeyUp, { capture: true });
     };
   }, []);
 
