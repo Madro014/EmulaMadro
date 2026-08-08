@@ -85,7 +85,6 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     const canvas = emuWrapperRef.current?.querySelector('canvas');
     if (canvas) canvas.dispatchEvent(event);
   }, []);
-
   const {
     multiplayerState,
     remoteStream,
@@ -95,6 +94,53 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     disconnect,
     broadcastStream
   } = useMultiplayer({ emuWrapperRef, onGuestInputReceived });
+
+  const handleTouchInput = useCallback((action, isPressed) => {
+    // 1. Si somos el Guest, enviamos la orden por red al Host
+    if (multiplayerState.mode === 'guest' && sendGuestInput) {
+      sendGuestInput(action, isPressed);
+      return;
+    }
+
+    // 2. Si somos Host o Local (Jugador 1), inyectamos a nuestro propio emulador
+    const retro = nostalgistRef.current?.retroarch;
+    if (retro?.core?.input) {
+      const BUTTON_MAP = {
+        'B': 0, 'Y': 1, 'SELECT': 2, 'START': 3,
+        'UP': 4, 'DOWN': 5, 'LEFT': 6, 'RIGHT': 7,
+        'A': 8, 'X': 9, 'L': 10, 'R': 11
+      };
+      const btn = BUTTON_MAP[action];
+      if (btn !== undefined) {
+        retro.core.input(0, btn, isPressed); // 0 = Player 1
+        return;
+      }
+    }
+
+    // 3. Fallback: Teclado para Player 1
+    const p1Keys = {
+      'UP': 'ArrowUp', 'DOWN': 'ArrowDown', 'LEFT': 'ArrowLeft', 'RIGHT': 'ArrowRight',
+      'A': 'x', 'B': 'z', 'SELECT': 'Shift', 'START': 'Enter'
+    };
+    
+    const key = p1Keys[action];
+    if (key) {
+      let code = key;
+      let keyCode = 0;
+      if (key === 'Enter') { code = 'Enter'; keyCode = 13; }
+      else if (key === 'Shift') { code = 'ShiftLeft'; keyCode = 16; }
+      else if (key.startsWith('Arrow')) { code = key; keyCode = key === 'ArrowUp' ? 38 : key === 'ArrowDown' ? 40 : key === 'ArrowLeft' ? 37 : 39; }
+      else { code = `Key${key.toUpperCase()}`; keyCode = key.toUpperCase().charCodeAt(0); }
+
+      const event = new KeyboardEvent(isPressed ? 'keydown' : 'keyup', {
+        key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
+      });
+      window.dispatchEvent(event);
+      document.dispatchEvent(event);
+      const canvas = emuWrapperRef.current?.querySelector('canvas');
+      if (canvas) canvas.dispatchEvent(event);
+    }
+  }, [multiplayerState.mode, sendGuestInput]);
 
   useEffect(() => {
     if (videoRef.current && remoteStream) {
@@ -436,6 +482,26 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         )}
         <div className="scanlines"></div>
         <img src="/tv.webp" className="tv-overlay" alt="TV Frame Overlay" />
+
+        <div className="mobile-controls">
+          <div className="d-pad-container">
+            <button className="d-pad-btn d-pad-up" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('UP', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('UP', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('UP', false)}}></button>
+            <button className="d-pad-btn d-pad-down" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('DOWN', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('DOWN', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('DOWN', false)}}></button>
+            <button className="d-pad-btn d-pad-left" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('LEFT', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('LEFT', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('LEFT', false)}}></button>
+            <button className="d-pad-btn d-pad-right" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('RIGHT', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('RIGHT', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('RIGHT', false)}}></button>
+            <div className="d-pad-center"></div>
+          </div>
+          
+          <div className="sys-buttons-container">
+            <button className="sys-btn" data-label="SELECT" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('SELECT', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('SELECT', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('SELECT', false)}}></button>
+            <button className="sys-btn" data-label="START" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('START', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('START', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('START', false)}}></button>
+          </div>
+
+          <div className="action-buttons-container">
+            <button className="action-btn action-b" data-label="B" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('B', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('B', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('B', false)}}>B</button>
+            <button className="action-btn action-a" data-label="A" onPointerDown={(e)=>{e.preventDefault(); handleTouchInput('A', true)}} onPointerUp={(e)=>{e.preventDefault(); handleTouchInput('A', false)}} onPointerCancel={(e)=>{e.preventDefault(); handleTouchInput('A', false)}}>A</button>
+          </div>
+        </div>
       </div>
       
       <EmulatorToolbar 

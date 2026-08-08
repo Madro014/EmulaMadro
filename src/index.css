@@ -852,3 +852,210 @@ body {
 .playmode-btn.active strong {
   color: #60a5fa;
 }
+
+.mobile-controls {
+  display: none;
+}
+
+/* --- MOBILE RESPONSIVE GAMEBOY LAYOUT --- */
+@media (max-width: 768px) {
+  body {
+    overflow: hidden; /* Prevent scrolling while playing */
+    touch-action: none; /* Prevent zooming/panning */
+  }
+  
+  .tv-frame {
+    aspect-ratio: auto;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+    background-color: #d3d9d3; /* Gameboy classic gray */
+    padding: 20px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    margin: 0;
+    border: none;
+  }
+  
+  .tv-overlay, .scanlines {
+    display: none;
+  }
+  
+  .emu-wrapper {
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 4/3;
+    height: auto;
+    background: #5c6258;
+    border: 20px solid #444;
+    border-radius: 10px 10px 40px 10px; /* Gameboy curve */
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 10;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.3);
+  }
+  
+  .emu-wrapper::before {
+    content: 'DOT MATRIX WITH STEREO SOUND';
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #999;
+    font-size: 8px;
+    font-family: sans-serif;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  
+  /* Touch Controls Area */
+  .mobile-controls {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 400px;
+    flex: 1;
+    position: relative;
+  }
+  
+  /* D-PAD */
+  .d-pad-container {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    width: 120px;
+    height: 120px;
+  }
+  
+  .d-pad-btn {
+    position: absolute;
+    background: #333;
+    border: none;
+    border-radius: 4px;
+    box-shadow: inset -2px -2px 5px rgba(0,0,0,0.5), inset 2px 2px 5px rgba(255,255,255,0.2);
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .d-pad-btn:active, .action-btn:active, .sys-btn:active {
+    transform: scale(0.95);
+    box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8);
+  }
+  
+  .d-pad-up { top: 0; left: 40px; width: 40px; height: 40px; border-radius: 8px 8px 0 0; }
+  .d-pad-down { bottom: 0; left: 40px; width: 40px; height: 40px; border-radius: 0 0 8px 8px; }
+  .d-pad-left { top: 40px; left: 0; width: 40px; height: 40px; border-radius: 8px 0 0 8px; }
+  .d-pad-right { top: 40px; right: 0; width: 40px; height: 40px; border-radius: 0 8px 8px 0; }
+  .d-pad-center { position: absolute; top: 40px; left: 40px; width: 40px; height: 40px; background: #333; z-index: -1; }
+  
+  /* ACTION BUTTONS */
+  .action-buttons-container {
+    position: absolute;
+    bottom: 100px;
+    right: 10px;
+    width: 140px;
+    height: 80px;
+    transform: rotate(-20deg);
+  }
+  
+  .action-btn {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #900020; /* Gameboy Crimson */
+    border: none;
+    color: #444;
+    font-weight: bold;
+    font-family: sans-serif;
+    font-size: 1.2rem;
+    text-indent: -9999px; /* Hide text visually */
+    box-shadow: inset -3px -3px 8px rgba(0,0,0,0.5), inset 3px 3px 8px rgba(255,255,255,0.3), 0 5px 10px rgba(0,0,0,0.3);
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .action-btn::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -25px;
+    right: 5px;
+    color: #900020;
+    font-size: 14px;
+    text-indent: 0;
+    transform: rotate(20deg);
+    font-family: sans-serif;
+    font-weight: 800;
+  }
+  
+  .action-a { right: 0; top: -10px; }
+  .action-b { left: 0; bottom: -10px; }
+  
+  /* SYSTEM BUTTONS (START / SELECT) */
+  .sys-buttons-container {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+  }
+  
+  .sys-btn {
+    width: 50px;
+    height: 15px;
+    background: #555;
+    border-radius: 20px;
+    border: none;
+    transform: rotate(-20deg);
+    box-shadow: inset -1px -1px 3px rgba(0,0,0,0.5), inset 1px 1px 3px rgba(255,255,255,0.2), 0 3px 5px rgba(0,0,0,0.3);
+    position: relative;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .sys-btn::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%) rotate(20deg);
+    color: #900020;
+    font-size: 10px;
+    font-family: sans-serif;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .emu-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+    border-radius: 5px 5px 25px 5px;
+    display: block;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .emu-wrapper {
+    top: auto;
+    left: auto;
+    transform: none;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .tv-frame {
+    margin-top: 1rem;
+  }
+}
+
