@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Nostalgist } from 'nostalgist';
-import { Gamepad2, Maximize, Loader2, Settings, X, Save, Upload, HardDriveDownload } from 'lucide-react';
+import { Gamepad2, Maximize, Loader2, Settings, X, Save, Upload, HardDriveDownload, MessageSquare, Wifi } from 'lucide-react';
 import { saveState as beSaveState, loadState as beLoadState, saveSram, loadSram } from '../backend/saveManager';
 import GamepadSettingsModal from './GamepadSettingsModal';
 import MultiplayerModal from './MultiplayerModal';
@@ -88,12 +88,41 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const {
     multiplayerState,
     remoteStream,
+    ping,
+    chatMessages,
+    sendChatMessage,
     hostRoom,
     joinRoom,
     sendGuestInput,
     disconnect,
     broadcastStream
   } = useMultiplayer({ emuWrapperRef, onGuestInputReceived });
+
+  const [chatInput, setChatInput] = useState('');
+  const [showChatInput, setShowChatInput] = useState(false);
+  const chatInputRef = useRef(null);
+
+  // Atajo de teclado estilo Tenkaichi 3: Presionar 'T' abre la barra de chat si estás en multijugador
+  useEffect(() => {
+    if (multiplayerState.status !== 'connected') return;
+
+    const handleKey = (e) => {
+      if ((e.key === 't' || e.key === 'T') && !showChatInput && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        setShowChatInput(true);
+        setTimeout(() => chatInputRef.current?.focus(), 50);
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [multiplayerState.status, showChatInput]);
+
+  useEffect(() => {
+    if (showChatInput) {
+      chatInputRef.current?.focus();
+    }
+  }, [showChatInput]);
 
   const handleTouchInput = useCallback((action, isPressed) => {
     // 1. Si somos el Guest, enviamos la orden por red al Host
@@ -420,23 +449,41 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         </div>
       )}
 
-      {multiplayerState.mode === 'host' && (
-        <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 100, background: 'rgba(0,0,0,0.8)', padding: '0.5rem 1rem', borderRadius: '6px', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #3b82f6' }}>
-          <div className={multiplayerState.status === 'connected' ? '' : 'spin'} style={{ width: '12px', height: '12px', borderRadius: '50%', background: multiplayerState.status === 'connected' ? '#10b981' : '#f59e0b' }}></div>
-          <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{multiplayerState.status === 'connected' ? 'P2 Conectado' : 'Esperando P2...'}</span>
-          <button onClick={disconnect} style={{ marginLeft: '0.5rem', background: '#ef4444', color: 'white', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
-            Cerrar Sala
-          </button>
-        </div>
-      )}
+      {/* Netplay HUD Estilo Tenkaichi 3 (Ping RTT, Estado de Conexión, Chat y Código) */}
+      {multiplayerState.mode !== 'local' && (
+        <div className="netplay-hud">
+          <div className="netplay-hud-left">
+            <div className={`status-indicator ${multiplayerState.status === 'connected' ? 'connected' : 'waiting'}`}>
+              <span className="dot"></span>
+              <span>{multiplayerState.status === 'connected' ? 'En Línea' : 'Esperando rival...'}</span>
+            </div>
+            <span className="role-tag">{multiplayerState.mode === 'host' ? 'Host (P1)' : 'Invitado (P2)'}</span>
+            {multiplayerState.roomId && (
+              <span className="room-code-tag">SALA: <strong>{multiplayerState.roomId}</strong></span>
+            )}
+          </div>
 
-      {multiplayerState.mode === 'guest' && multiplayerState.status === 'connected' && (
-        <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 100, background: 'rgba(0,0,0,0.8)', padding: '0.5rem 1rem', borderRadius: '6px', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #10b981' }}>
-          <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10b981' }}></div>
-          <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>Conectado</span>
-          <button onClick={disconnect} style={{ marginLeft: '0.5rem', background: '#ef4444', color: 'white', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>
-            Salir de Sala
-          </button>
+          <div className="netplay-hud-right">
+            {multiplayerState.status === 'connected' && (
+              <>
+                <div className={`ping-tag ${ping && ping < 60 ? 'good' : ping && ping < 120 ? 'med' : 'bad'}`}>
+                  <Wifi size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                  {ping !== null ? `${ping} ms` : 'Midiendo...'}
+                </div>
+                <button 
+                  className={`chat-toggle-btn ${showChatInput ? 'active' : ''}`}
+                  onClick={() => setShowChatInput(prev => !prev)}
+                  title="Abrir chat (Atajo: tecla T)"
+                >
+                  <MessageSquare size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                  Chat
+                </button>
+              </>
+            )}
+            <button className="leave-room-btn" onClick={disconnect}>
+              {multiplayerState.mode === 'host' ? 'Cerrar Sala' : 'Salir'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -468,7 +515,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
             ) : (
               <div style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', zIndex: 10 }}>
                 <Loader2 className="spin" size={40} />
-                <span style={{ fontSize: '0.8rem', textAlign: 'center' }}>Esperando host...</span>
+                <span style={{ fontSize: '0.8rem', textAlign: 'center' }}>Esperando stream del anfitrión...</span>
                 <button 
                   onClick={disconnect}
                   style={{ marginTop: '0.5rem', padding: '0.5rem 1rem', background: '#ef4444', color: 'white', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -480,6 +527,52 @@ export default function RetroEmulator({ romFile, core, onStop }) {
             )}
           </div>
         )}
+
+        {/* Overlay de Chat en Partida Estilo Tenkaichi 3 */}
+        {multiplayerState.status === 'connected' && (
+          <div className="ingame-chat-container">
+            <div className="chat-messages-stream">
+              {chatMessages.slice(-5).map((msg) => (
+                <div key={msg.id} className={`chat-bubble ${msg.isSystem ? 'system' : msg.sender === 'Host' ? 'host' : 'guest'}`}>
+                  <span className="chat-sender">{msg.sender}:</span>
+                  <span className="chat-text">{msg.text}</span>
+                </div>
+              ))}
+            </div>
+
+            {showChatInput && (
+              <form 
+                className="chat-input-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (chatInput.trim()) {
+                    sendChatMessage(chatInput);
+                    setChatInput('');
+                    setShowChatInput(false);
+                  }
+                }}
+              >
+                <input 
+                  ref={chatInputRef}
+                  type="text" 
+                  className="ingame-chat-input"
+                  placeholder="Mensaje al rival... (Enter para enviar, Esc para salir)"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Escape') {
+                      setShowChatInput(false);
+                    }
+                  }}
+                  onKeyUp={(e) => e.stopPropagation()}
+                />
+                <button type="submit" className="chat-send-btn">Enviar</button>
+              </form>
+            )}
+          </div>
+        )}
+
         <div className="scanlines"></div>
         <img src="/tv.webp" className="tv-overlay" alt="TV Frame Overlay" />
 

@@ -1138,4 +1138,239 @@ body {
   }
 }
 
+/* =========================================================
+   NETPLAY HUD & IN-GAME CHAT (Inspirado en Tenkaichi 3)
+   ========================================================= */
+
+.netplay-hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.netplay-hud-left,
+.netplay-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.status-indicator .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-indicator.connected .dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.status-indicator.waiting .dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+.role-tag {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.room-code-tag {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.ping-tag {
+  display: flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-family: monospace;
+  font-weight: bold;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.ping-tag.good {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.ping-tag.med {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.ping-tag.bad {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.chat-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.chat-toggle-btn:hover,
+.chat-toggle-btn.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+}
+
+.leave-room-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.leave-room-btn:hover {
+  background: #dc2626;
+}
+
+/* In-game floating chat */
+.ingame-chat-container {
+  position: absolute;
+  bottom: 25px;
+  left: 20px;
+  width: min(380px, 90%);
+  z-index: 90;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chat-messages-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.chat-bubble {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+  color: white;
+  animation: fadeIn 0.2s ease-out;
+  display: flex;
+  gap: 0.4rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.chat-bubble.host .chat-sender {
+  color: #60a5fa;
+  font-weight: bold;
+}
+
+.chat-bubble.guest .chat-sender {
+  color: #34d399;
+  font-weight: bold;
+}
+
+.chat-bubble.system {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(30, 27, 10, 0.85);
+}
+
+.chat-bubble.system .chat-sender {
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.chat-text {
+  word-break: break-word;
+}
+
+.chat-input-form {
+  pointer-events: auto;
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.ingame-chat-input {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: white;
+  outline: none;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+.chat-send-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+
 
