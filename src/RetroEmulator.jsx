@@ -108,21 +108,30 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [showChatInput, setShowChatInput] = useState(false);
   const chatInputRef = useRef(null);
 
-  // Atajo de teclado estilo Tenkaichi 3: Presionar 'T' abre la barra de chat si estás en multijugador
+  // Atajo de teclado estilo Tenkaichi 3: Presionar 'Ctrl + T' (o 'T') abre y cierra el chat
   useEffect(() => {
     if (multiplayerState.status !== 'connected') return;
 
     const handleKey = (e) => {
-      if ((e.key === 't' || e.key === 'T') && !showChatInput && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      const isCtrlT = (e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T');
+      const isPlainT = (e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.altKey && !e.metaKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA';
+
+      if (isCtrlT || isPlainT) {
         e.preventDefault();
-        setShowChatInput(true);
-        setTimeout(() => chatInputRef.current?.focus(), 50);
+        e.stopPropagation();
+        setShowChatInput(prev => {
+          const next = !prev;
+          if (next) {
+            setTimeout(() => chatInputRef.current?.focus(), 50);
+          }
+          return next;
+        });
       }
     };
 
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [multiplayerState.status, showChatInput]);
+    window.addEventListener('keydown', handleKey, { capture: true });
+    return () => window.removeEventListener('keydown', handleKey, { capture: true });
+  }, [multiplayerState.status]);
 
   useEffect(() => {
     if (showChatInput) {
@@ -625,7 +634,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => {
                     e.stopPropagation();
-                    if (e.key === 'Escape') {
+                    if (e.key === 'Escape' || ((e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T'))) {
+                      e.preventDefault();
                       setShowChatInput(false);
                     }
                   }}
@@ -661,6 +671,25 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         </div>
       </div>
       
+      {/* Botón flotante de Chat interactivo (aparece apenas se conecta el rival) */}
+      {multiplayerState.status === 'connected' && (
+        <button 
+          className={`floating-chat-trigger-btn ${showChatInput ? 'active' : ''}`}
+          onClick={() => {
+            setShowChatInput(prev => {
+              const next = !prev;
+              if (next) setTimeout(() => chatInputRef.current?.focus(), 50);
+              return next;
+            });
+          }}
+          title="Chat Online (Ctrl + T)"
+        >
+          <MessageSquare size={18} />
+          <span className="floating-chat-label">Chat</span>
+          <span className="floating-chat-shortcut">Ctrl+T</span>
+        </button>
+      )}
+
       <EmulatorToolbar 
         openSettings={() => setShowSettings(true)}
         openMultiplayer={() => setShowMultiplayerModal(true)}
