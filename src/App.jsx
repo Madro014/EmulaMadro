@@ -229,7 +229,7 @@ function App() {
     const ext = romName.split('.').pop().toLowerCase();
     
     // 1. Custom Cover in Supabase
-    const customCover = cloudCovers.find(c => c.name.startsWith(baseName + '.'));
+    const customCover = cloudCovers.find(c => c.name.toLowerCase().startsWith(baseName.toLowerCase() + '.'));
     if (customCover) {
       return supabase.storage.from('emulamadro').getPublicUrl(`covers/${customCover.name}`).data.publicUrl;
     }
