@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Gamepad2, Upload, Cloud, Play, ImagePlus } from 'lucide-react'
+import { Gamepad2, Upload, Cloud, Play, ImagePlus, Loader2 } from 'lucide-react'
 import RetroEmulator from './RetroEmulator'
 import { supabase } from './supabaseClient'
 import './index.css'
@@ -89,6 +89,7 @@ function App() {
   const [cloudCovers, setCloudCovers] = useState([])
   const [failedImages, setFailedImages] = useState(new Set())
   const [loadingRoms, setLoadingRoms] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(null)
 
   const isSupabaseConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'PON_TU_URL_AQUI'
 
@@ -96,8 +97,8 @@ function App() {
     if (!isSupabaseConfigured) return;
     setLoadingRoms(true);
     try {
-      const { data: romsData, error: romsErr } = await supabase.storage.from('emulamadro').list('roms', { limit: 100 });
-      const { data: coversData } = await supabase.storage.from('emulamadro').list('covers', { limit: 100 });
+      const { data: romsData, error: romsErr } = await supabase.storage.from('emulamadro').list('roms', { limit: 500 });
+      const { data: coversData } = await supabase.storage.from('emulamadro').list('covers', { limit: 500 });
       
       if (romsErr) throw romsErr;
       
@@ -130,25 +131,75 @@ function App() {
   }
 
   const handleCloudUpload = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return;
-    
-    const detectedCore = detectCore(file.name)
-    if (!detectedCore) {
-      alert("Formato no soportado.")
-      return
+    const rawFiles = Array.from(event.target.files || []);
+    if (rawFiles.length === 0) return;
+
+    // Filtrar archivos con formato compatible
+    const validFiles = rawFiles.filter(file => detectCore(file.name) !== null);
+    const unsupportedCount = rawFiles.length - validFiles.length;
+
+    if (validFiles.length === 0) {
+      alert("Ninguno de los archivos seleccionados tiene un formato compatible (.nes, .smc, .sfc, .gba, .gb, .gbc, .gen, .md).");
+      event.target.value = '';
+      return;
     }
 
-    try {
-      alert(`Subiendo ${file.name} a la nube...`);
-      const { error } = await supabase.storage.from('emulamadro').upload(`roms/${file.name}`, file, { upsert: true });
-      if (error) throw error;
-      fetchCloudRoms();
-    } catch (err) {
-      console.error("Error subiendo ROM:", err);
-      alert("Error al subir el juego: " + err.message);
-    } finally {
+    // Comprobar juegos ya subidos para ignorarlos y no duplicar
+    const existingNames = new Set(cloudRoms.map(r => r.name.toLowerCase()));
+    const filesToUpload = validFiles.filter(file => !existingNames.has(file.name.toLowerCase()));
+    const alreadyExistingCount = validFiles.length - filesToUpload.length;
+
+    // Si todos los juegos seleccionados ya estaban subidos, no pasa nada
+    if (filesToUpload.length === 0) {
+      if (validFiles.length === 1) {
+        alert("Este juego ya se encuentra subido en tu biblioteca.");
+      } else {
+        alert(`Los ${alreadyExistingCount} juegos seleccionados ya estaban en tu biblioteca.`);
+      }
       event.target.value = '';
+      return;
+    }
+
+    let uploadedCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const file = filesToUpload[i];
+      setUploadProgress({ current: i + 1, total: filesToUpload.length, fileName: file.name });
+
+      try {
+        const { error } = await supabase.storage.from('emulamadro').upload(`roms/${file.name}`, file, { upsert: false });
+        if (error) {
+          // Si el servidor indica que ya existe, no pasa nada (se omite)
+          const isDuplicate = error.statusCode === '409' || 
+                              error.message?.toLowerCase().includes('already exists') || 
+                              error.error === 'Duplicate';
+          if (!isDuplicate) {
+            console.error(`Error subiendo ${file.name}:`, error);
+            failedCount++;
+          }
+        } else {
+          uploadedCount++;
+        }
+      } catch (err) {
+        console.error(`Error subiendo ${file.name}:`, err);
+        failedCount++;
+      }
+    }
+
+    setUploadProgress(null);
+    event.target.value = '';
+    await fetchCloudRoms();
+
+    // Resumen amigable
+    const summary = [];
+    if (uploadedCount > 0) summary.push(`✅ ${uploadedCount} juego(s) subido(s) con éxito.`);
+    if (alreadyExistingCount > 0) summary.push(`ℹ️ ${alreadyExistingCount} juego(s) ya existían y se omitieron.`);
+    if (unsupportedCount > 0) summary.push(`⚠️ ${unsupportedCount} archivo(s) omitidos por formato no soportado.`);
+    if (failedCount > 0) summary.push(`❌ ${failedCount} juego(s) fallaron al subirse.`);
+
+    if (summary.length > 0) {
+      alert(summary.join('\n'));
     }
   }
 
@@ -214,9 +265,27 @@ function App() {
               <>
                 <div className="library-header">
                   <h2><Cloud size={24} style={{ display: 'inline', marginRight: '10px' }} /> Tu Biblioteca en la Nube</h2>
-                  <label className="upload-cloud-btn">
-                    <Upload size={18} /> Subir Juego a la Nube
-                    <input type="file" accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md" onChange={handleCloudUpload} />
+                  <label 
+                    className="upload-cloud-btn"
+                    style={uploadProgress ? { opacity: 0.85, pointerEvents: 'none', cursor: 'wait' } : {}}
+                  >
+                    {uploadProgress ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Subiendo ({uploadProgress.current}/{uploadProgress.total})...
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={18} /> Subir Juegos a la Nube
+                      </>
+                    )}
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md" 
+                      onChange={handleCloudUpload} 
+                      disabled={!!uploadProgress}
+                    />
                   </label>
                 </div>
 
