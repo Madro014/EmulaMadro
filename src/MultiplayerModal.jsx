@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, RefreshCw, Users, Check, Globe, ShieldCheck } from 'lucide-react';
+import { X, Copy, RefreshCw, Users, Check, Globe, ShieldCheck, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRoom }) {
@@ -16,6 +16,14 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
   const [joinPassword, setJoinPassword] = useState('');
   const [availableRooms, setAvailableRooms] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [myRooms, setMyRooms] = useState([]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('my_created_rooms') || '[]');
+      setMyRooms(stored);
+    } catch (e) {}
+  }, [show]);
 
   // Generar código de sala de 6 caracteres (estilo Tenkaichi3)
   useEffect(() => {
@@ -52,12 +60,51 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
 
   const handleCreateRoom = async () => {
     const roomName = createRoomName.trim() || `Sala ${generatedRoomId}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem('my_created_rooms') || '[]');
+      if (!saved.includes(generatedRoomId)) {
+        saved.push(generatedRoomId);
+        localStorage.setItem('my_created_rooms', JSON.stringify(saved));
+        setMyRooms(saved);
+      }
+    } catch (e) {}
+
     onCreateRoom({
       id: generatedRoomId,
       name: roomName,
       password: createPassword
     });
     onClose();
+  };
+
+  const handleDeleteRoom = async (roomId, e) => {
+    if (e) e.stopPropagation();
+    if (!confirm(`¿Estás seguro de que deseas eliminar la sala [${roomId}]?`)) return;
+
+    try {
+      await supabase.from('rooms').delete().eq('id', roomId);
+      const updated = myRooms.filter(id => id !== roomId);
+      localStorage.setItem('my_created_rooms', JSON.stringify(updated));
+      setMyRooms(updated);
+      if (joinRoomId === roomId) setJoinRoomId('');
+      refreshRooms();
+    } catch (err) {
+      console.error('Error eliminando sala:', err);
+      alert('Error al eliminar la sala.');
+    }
+  };
+
+  const handleResetAllRooms = async () => {
+    if (!confirm('¿Deseas resetear y limpiar todas las salas inactivas de la base de datos?')) return;
+    try {
+      await supabase.from('rooms').delete().neq('id', 'dummy_keep');
+      localStorage.removeItem('my_created_rooms');
+      setMyRooms([]);
+      setJoinRoomId('');
+      refreshRooms();
+    } catch (err) {
+      console.error('Error reseteando salas:', err);
+    }
   };
 
   const handleJoinRoom = () => {
@@ -257,35 +304,61 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
             {/* Explorador de salas públicas disponibles */}
             <div style={{ marginTop: '1.8rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>O selecciona una sala activa:</span>
-                <button 
-                  className="settings-btn" 
-                  onClick={refreshRooms}
-                  disabled={isRefreshing}
-                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
-                >
-                  <RefreshCw size={12} className={isRefreshing ? "spin" : ""} /> Refrescar
-                </button>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Salas activas:</span>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button 
+                    className="settings-btn" 
+                    onClick={handleResetAllRooms}
+                    title="Limpiar todas las salas de la lista"
+                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                  >
+                    <Trash2 size={12} /> Resetear Salas
+                  </button>
+                  <button 
+                    className="settings-btn" 
+                    onClick={refreshRooms}
+                    disabled={isRefreshing}
+                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                  >
+                    <RefreshCw size={12} className={isRefreshing ? "spin" : ""} /> Refrescar
+                  </button>
+                </div>
               </div>
 
               <div className="room-list">
                 {availableRooms.length === 0 ? (
                   <div className="empty-state">No hay salas públicas visibles.</div>
                 ) : (
-                  availableRooms.map(room => (
-                    <div 
-                      key={room.id} 
-                      className="room-card" 
-                      onClick={() => setJoinRoomId(room.id)}
-                      style={{ border: joinRoomId === room.id ? '1px solid #3b82f6' : undefined }}
-                    >
-                      <div className="room-info">
-                        <strong className="room-name">{room.name}</strong>
-                        <span className="room-id" style={{ color: '#34d399' }}>{room.id}</span>
+                  availableRooms.map(room => {
+                    const isCreator = myRooms.includes(room.id);
+                    return (
+                      <div 
+                        key={room.id} 
+                        className="room-card" 
+                        onClick={() => setJoinRoomId(room.id)}
+                        style={{ border: joinRoomId === room.id ? '1px solid #3b82f6' : undefined }}
+                      >
+                        <div className="room-info">
+                          <strong className="room-name">{room.name}</strong>
+                          <span className="room-id" style={{ color: '#34d399' }}>
+                            {room.id} {isCreator && <span style={{ fontSize: '0.72rem', color: '#60a5fa', marginLeft: '6px' }}>(Creador)</span>}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {room.has_password && <span className="room-lock" title="Requiere contraseña">🔒</span>}
+                          {isCreator && (
+                            <button 
+                              className="delete-room-card-btn"
+                              title="Eliminar esta sala (eres el creador)"
+                              onClick={(e) => handleDeleteRoom(room.id, e)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {room.has_password && <span className="room-lock" title="Requiere contraseña">🔒</span>}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

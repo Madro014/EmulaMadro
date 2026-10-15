@@ -51,18 +51,18 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     const btn = action.toLowerCase();
     console.log(`[Host] Input Player 2 recibido: ${btn} -> ${isPressed ? 'DOWN' : 'UP'}`);
 
-    // 1. Inyección nativa a través de Nostalgist (JSEvents / Emscripten)
+    // 1. Inyección nativa a través de Nostalgist exclusivamente para Jugador 2
     try {
       if (isPressed) {
-        nostalgistRef.current.pressDown(btn, 2);
+        nostalgistRef.current.pressDown({ button: btn, player: 2 });
       } else {
-        nostalgistRef.current.pressUp(btn, 2);
+        nostalgistRef.current.pressUp({ button: btn, player: 2 });
       }
     } catch (err) {
       console.error("[Host] Error inyectando input de Player 2:", err);
     }
 
-    // 2. Dispatch de evento de teclado sobre el canvas para máxima compatibilidad
+    // 2. Dispatch de evento de teclado sobre el canvas de RetroArch para Player 2
     const P2_KEYS = {
       up: { key: 'i', code: 'KeyI', keyCode: 73 },
       down: { key: 'k', code: 'KeyK', keyCode: 75 },
@@ -87,7 +87,6 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         bubbles: true,
         cancelable: true
       });
-      window.dispatchEvent(ev);
       if (canvas) canvas.dispatchEvent(ev);
     }
   }, []);
@@ -233,8 +232,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     if (nostalgistRef.current) {
       const btn = action.toLowerCase();
       try {
-        if (isPressed) nostalgistRef.current.pressDown(btn, 1);
-        else nostalgistRef.current.pressUp(btn, 1);
+        if (isPressed) nostalgistRef.current.pressDown({ button: btn, player: 1 });
+        else nostalgistRef.current.pressUp({ button: btn, player: 1 });
       } catch (e) {}
     }
   }, [multiplayerState.mode, sendGuestInput]);

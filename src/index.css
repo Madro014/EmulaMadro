@@ -1275,6 +1275,26 @@ body {
   background: #dc2626;
 }
 
+.delete-room-card-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  padding: 0.25rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.delete-room-card-btn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  transform: scale(1.05);
+}
+
 /* In-game floating chat */
 .ingame-chat-container {
   position: absolute;
