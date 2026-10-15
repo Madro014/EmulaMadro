@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Maximize, Save, Upload, HardDriveDownload, Users } from 'lucide-react';
+import { Settings, Maximize, Save, Upload, HardDriveDownload, Users, MessageSquare } from 'lucide-react';
 
 export default function EmulatorToolbar({
   openSettings,
@@ -9,7 +9,9 @@ export default function EmulatorToolbar({
   handleLoadStateBrowser,
   handleDownloadSave,
   handleUploadState,
-  fileInputRef
+  fileInputRef,
+  isMultiplayerConnected,
+  toggleChat
 }) {
   return (
     <div className="controls-hint" style={{ flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
@@ -19,6 +21,18 @@ export default function EmulatorToolbar({
       <button className="settings-btn" onClick={openMultiplayer} style={{ background: '#3b82f6' }}>
         <Users size={18} /> Multijugador
       </button>
+      
+      {isMultiplayerConnected && (
+        <button 
+          className="settings-btn" 
+          onClick={toggleChat} 
+          style={{ background: '#8b5cf6', borderColor: '#a78bfa', fontWeight: 'bold' }}
+          title="Abrir chat en partida (Atajo: presiona tecla T)"
+        >
+          <MessageSquare size={18} /> Chat Online (T)
+        </button>
+      )}
+
       <button className="settings-btn" onClick={toggleFullscreen}>
         <Maximize size={18} /> Pantalla Completa
       </button>
@@ -34,7 +48,7 @@ export default function EmulatorToolbar({
       
       <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)', margin: '0 0.5rem' }}></div>
 
-      <button className="settings-btn" onClick={handleDownloadSave} style={{ background: '#8b5cf6' }}>
+      <button className="settings-btn" onClick={handleDownloadSave} style={{ background: '#6366f1' }}>
         <Save size={18} /> Bajar Respaldo
       </button>
       <label className="settings-btn" style={{ background: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

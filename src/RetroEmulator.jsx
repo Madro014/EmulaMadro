@@ -44,46 +44,18 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const videoRef = useRef(null);
 
   const onGuestInputReceived = useCallback((action, isPressed) => {
-    // 1. Enfoque nativo: Inyectar directo al core de RetroArch en el Puerto 2 (índice 1)
-    const retro = nostalgistRef.current?.retroarch;
-    if (retro?.core?.input) {
-      const BUTTON_MAP = {
-        'B': 0, 'Y': 1, 'SELECT': 2, 'START': 3,
-        'UP': 4, 'DOWN': 5, 'LEFT': 6, 'RIGHT': 7,
-        'A': 8, 'X': 9, 'L': 10, 'R': 11
-      };
-      const btn = BUTTON_MAP[action];
-      if (btn !== undefined) {
-        retro.core.input(1, btn, isPressed);
-        console.log(`[Host] Inyectado nativo Player 2: ${action} -> ${isPressed}`);
-        return; // Éxito nativo, no necesitamos propagar eventos falsos de teclado
+    if (!nostalgistRef.current) return;
+    const btn = action.toLowerCase();
+    try {
+      if (isPressed) {
+        nostalgistRef.current.pressDown(btn, 2);
+      } else {
+        nostalgistRef.current.pressUp(btn, 2);
       }
+      console.log(`[Host] Input Player 2 inyectado: ${btn} -> ${isPressed ? 'DOWN' : 'UP'}`);
+    } catch (err) {
+      console.error("[Host] Error inyectando input de Player 2:", err);
     }
-
-    // 2. Fallback: Eventos de teclado (si el core no soporta la API nativa)
-    const key = KEY_MAP_P2[action];
-    if (!key) return;
-
-    let code = key;
-    let keyCode = 0;
-    if (key.toLowerCase() === 'space') { code = 'Space'; keyCode = 32; }
-    else if (key.toLowerCase() === 'tab') { code = 'Tab'; keyCode = 9; }
-    else { 
-      code = `Key${key.toUpperCase()}`; 
-      keyCode = key.toUpperCase().charCodeAt(0); 
-    }
-
-    console.log(`[Host] Fallback teclado Player 2: ${action} -> Presionado: ${isPressed} | Key: ${key}`);
-
-    const type = isPressed ? 'keydown' : 'keyup';
-    const event = new KeyboardEvent(type, {
-      key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
-    });
-
-    window.dispatchEvent(event);
-    document.dispatchEvent(event);
-    const canvas = emuWrapperRef.current?.querySelector('canvas');
-    if (canvas) canvas.dispatchEvent(event);
   }, []);
   const {
     multiplayerState,
@@ -124,6 +96,68 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     }
   }, [showChatInput]);
 
+  // Captura global de teclado para el Invitado (Guest / Player 2)
+  useEffect(() => {
+    if (multiplayerState.mode !== 'guest') return;
+
+    const GUEST_KEYS = {
+      // D-Pad tradicional
+      'ArrowUp': 'UP',
+      'KeyW': 'UP',
+      'ArrowDown': 'DOWN',
+      'KeyS': 'DOWN',
+      'ArrowLeft': 'LEFT',
+      'KeyA': 'LEFT',
+      'ArrowRight': 'RIGHT',
+      'KeyD': 'RIGHT',
+      // Botones de acción
+      'KeyX': 'A',
+      'KeyZ': 'B',
+      'KeyC': 'Y',
+      'KeyV': 'X',
+      'KeyQ': 'L',
+      'KeyE': 'R',
+      // Menú / Start / Select
+      'Enter': 'START',
+      'Space': 'START',
+      'ShiftLeft': 'SELECT',
+      'ShiftRight': 'SELECT',
+      'Tab': 'SELECT',
+      // Teclas alternativas P2
+      'KeyI': 'UP',
+      'KeyK': 'DOWN',
+      'KeyJ': 'LEFT',
+      'KeyL': 'RIGHT',
+      'KeyM': 'A',
+      'KeyN': 'B'
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const action = GUEST_KEYS[e.code] || GUEST_KEYS[e.key];
+      if (action) {
+        e.preventDefault();
+        sendGuestInput(action, true);
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const action = GUEST_KEYS[e.code] || GUEST_KEYS[e.key];
+      if (action) {
+        e.preventDefault();
+        sendGuestInput(action, false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [multiplayerState.mode, sendGuestInput]);
+
   const handleTouchInput = useCallback((action, isPressed) => {
     // 1. Si somos el Guest, enviamos la orden por red al Host
     if (multiplayerState.mode === 'guest' && sendGuestInput) {
@@ -132,42 +166,12 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     }
 
     // 2. Si somos Host o Local (Jugador 1), inyectamos a nuestro propio emulador
-    const retro = nostalgistRef.current?.retroarch;
-    if (retro?.core?.input) {
-      const BUTTON_MAP = {
-        'B': 0, 'Y': 1, 'SELECT': 2, 'START': 3,
-        'UP': 4, 'DOWN': 5, 'LEFT': 6, 'RIGHT': 7,
-        'A': 8, 'X': 9, 'L': 10, 'R': 11
-      };
-      const btn = BUTTON_MAP[action];
-      if (btn !== undefined) {
-        retro.core.input(0, btn, isPressed); // 0 = Player 1
-        return;
-      }
-    }
-
-    // 3. Fallback: Teclado para Player 1
-    const p1Keys = {
-      'UP': 'ArrowUp', 'DOWN': 'ArrowDown', 'LEFT': 'ArrowLeft', 'RIGHT': 'ArrowRight',
-      'A': 'x', 'B': 'z', 'SELECT': 'Shift', 'START': 'Enter'
-    };
-    
-    const key = p1Keys[action];
-    if (key) {
-      let code = key;
-      let keyCode = 0;
-      if (key === 'Enter') { code = 'Enter'; keyCode = 13; }
-      else if (key === 'Shift') { code = 'ShiftLeft'; keyCode = 16; }
-      else if (key.startsWith('Arrow')) { code = key; keyCode = key === 'ArrowUp' ? 38 : key === 'ArrowDown' ? 40 : key === 'ArrowLeft' ? 37 : 39; }
-      else { code = `Key${key.toUpperCase()}`; keyCode = key.toUpperCase().charCodeAt(0); }
-
-      const event = new KeyboardEvent(isPressed ? 'keydown' : 'keyup', {
-        key, code, keyCode, which: keyCode, bubbles: true, cancelable: true
-      });
-      window.dispatchEvent(event);
-      document.dispatchEvent(event);
-      const canvas = emuWrapperRef.current?.querySelector('canvas');
-      if (canvas) canvas.dispatchEvent(event);
+    if (nostalgistRef.current) {
+      const btn = action.toLowerCase();
+      try {
+        if (isPressed) nostalgistRef.current.pressDown(btn, 1);
+        else nostalgistRef.current.pressUp(btn, 1);
+      } catch (e) {}
     }
   }, [multiplayerState.mode, sendGuestInput]);
 
@@ -606,6 +610,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         handleDownloadSave={handleDownloadSave}
         handleUploadState={handleUploadState}
         fileInputRef={fileInputRef}
+        isMultiplayerConnected={multiplayerState.mode !== 'local'}
+        toggleChat={() => setShowChatInput(prev => !prev)}
       />
 
       <button className="stop-btn" onClick={onStop}>Cambiar Juego</button>
