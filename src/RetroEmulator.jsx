@@ -44,17 +44,51 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const videoRef = useRef(null);
 
   const onGuestInputReceived = useCallback((action, isPressed) => {
-    if (!nostalgistRef.current) return;
+    if (!nostalgistRef.current) {
+      console.warn("[Host] onGuestInputReceived: nostalgistRef.current aún no está listo.");
+      return;
+    }
     const btn = action.toLowerCase();
+    console.log(`[Host] Input Player 2 recibido: ${btn} -> ${isPressed ? 'DOWN' : 'UP'}`);
+
+    // 1. Inyección nativa a través de Nostalgist (JSEvents / Emscripten)
     try {
       if (isPressed) {
         nostalgistRef.current.pressDown(btn, 2);
       } else {
         nostalgistRef.current.pressUp(btn, 2);
       }
-      console.log(`[Host] Input Player 2 inyectado: ${btn} -> ${isPressed ? 'DOWN' : 'UP'}`);
     } catch (err) {
       console.error("[Host] Error inyectando input de Player 2:", err);
+    }
+
+    // 2. Dispatch de evento de teclado sobre el canvas para máxima compatibilidad
+    const P2_KEYS = {
+      up: { key: 'i', code: 'KeyI', keyCode: 73 },
+      down: { key: 'k', code: 'KeyK', keyCode: 75 },
+      left: { key: 'j', code: 'KeyJ', keyCode: 74 },
+      right: { key: 'l', code: 'KeyL', keyCode: 76 },
+      a: { key: 'm', code: 'KeyM', keyCode: 77 },
+      b: { key: 'n', code: 'KeyN', keyCode: 78 },
+      x: { key: 'u', code: 'KeyU', keyCode: 85 },
+      y: { key: 'o', code: 'KeyO', keyCode: 79 },
+      start: { key: ' ', code: 'Space', keyCode: 32 },
+      select: { key: 'Tab', code: 'Tab', keyCode: 9 }
+    };
+    const keyData = P2_KEYS[btn];
+    if (keyData) {
+      const canvas = emuWrapperRef.current?.querySelector('canvas');
+      const type = isPressed ? 'keydown' : 'keyup';
+      const ev = new KeyboardEvent(type, {
+        key: keyData.key,
+        code: keyData.code,
+        keyCode: keyData.keyCode,
+        which: keyData.keyCode,
+        bubbles: true,
+        cancelable: true
+      });
+      window.dispatchEvent(ev);
+      if (canvas) canvas.dispatchEvent(ev);
     }
   }, []);
   const {
@@ -104,24 +138,42 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       // D-Pad tradicional
       'ArrowUp': 'UP',
       'KeyW': 'UP',
+      'w': 'UP',
+      'W': 'UP',
       'ArrowDown': 'DOWN',
       'KeyS': 'DOWN',
+      's': 'DOWN',
+      'S': 'DOWN',
       'ArrowLeft': 'LEFT',
       'KeyA': 'LEFT',
+      'a': 'LEFT',
+      'A': 'LEFT',
       'ArrowRight': 'RIGHT',
       'KeyD': 'RIGHT',
+      'd': 'RIGHT',
+      'D': 'RIGHT',
       // Botones de acción
       'KeyX': 'A',
+      'x': 'A',
+      'X': 'A',
       'KeyZ': 'B',
+      'z': 'B',
+      'Z': 'B',
       'KeyC': 'Y',
+      'c': 'Y',
+      'C': 'Y',
       'KeyV': 'X',
+      'v': 'X',
+      'V': 'X',
       'KeyQ': 'L',
       'KeyE': 'R',
       // Menú / Start / Select
       'Enter': 'START',
       'Space': 'START',
+      ' ': 'START',
       'ShiftLeft': 'SELECT',
       'ShiftRight': 'SELECT',
+      'Shift': 'SELECT',
       'Tab': 'SELECT',
       // Teclas alternativas P2
       'KeyI': 'UP',
@@ -134,9 +186,11 @@ export default function RetroEmulator({ romFile, core, onStop }) {
 
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.repeat) return;
       const action = GUEST_KEYS[e.code] || GUEST_KEYS[e.key];
       if (action) {
         e.preventDefault();
+        console.log(`[Guest] Tecla presionada: ${e.code || e.key} -> Acción: ${action}`);
         sendGuestInput(action, true);
       }
     };
@@ -146,6 +200,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       const action = GUEST_KEYS[e.code] || GUEST_KEYS[e.key];
       if (action) {
         e.preventDefault();
+        console.log(`[Guest] Tecla soltada: ${e.code || e.key} -> Acción: ${action}`);
         sendGuestInput(action, false);
       }
     };
@@ -231,6 +286,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     listeningActionRef,
     playerRole,
     editingPlayerTab,
+    multiplayerMode: multiplayerState.mode,
     isGuest: multiplayerState.mode === 'guest',
     sendGuestInput
   });
@@ -294,6 +350,10 @@ export default function RetroEmulator({ romFile, core, onStop }) {
           retroarchConfig: {
             pause_nonactive: false,
             input_autodetect_enable: "false", // Disable native gamepad to avoid double inputs
+            
+            // Controller types: 1 = Standard RETRO_DEVICE_JOYPAD
+            input_libretro_device_p1: "1",
+            input_libretro_device_p2: "1",
             
             // Player 1 Keyboard Mapping
             input_player1_up: "up",

@@ -43,6 +43,11 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
   const connectionRef = useRef(null);
   const mediaConnectionRef = useRef(null);
   const pingIntervalRef = useRef(null);
+  const onGuestInputReceivedRef = useRef(onGuestInputReceived);
+
+  useEffect(() => {
+    onGuestInputReceivedRef.current = onGuestInputReceived;
+  }, [onGuestInputReceived]);
 
   // Iniciar medición periódica de latencia (RTT / Ping en ms estilo Tenkaichi3)
   const startPingMonitoring = (conn) => {
@@ -131,8 +136,8 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
       
       conn.on('data', (data) => {
         if (!data) return;
-        if (data.type === 'input' && onGuestInputReceived) {
-          onGuestInputReceived(data.action, data.isPressed);
+        if (data.type === 'input' && onGuestInputReceivedRef.current) {
+          onGuestInputReceivedRef.current(data.action, data.isPressed);
         } else if (data.type === 'ping') {
           conn.send({ type: 'pong', t: data.t });
         } else if (data.type === 'pong') {
