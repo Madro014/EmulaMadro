@@ -22,6 +22,14 @@ const DEFAULT_MAPPING = {
   }
 };
 
+const getInitialMapping = () => {
+  try {
+    const saved = localStorage.getItem('emulamadro_mapping');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return DEFAULT_MAPPING;
+};
+
 export default function RetroEmulator({ romFile, core, onStop }) {
   const containerRef = useRef(null);
   const emuWrapperRef = useRef(null);
@@ -31,13 +39,19 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [gamepadStatus, setGamepadStatus] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
-  const [mapping, setMapping] = useState(DEFAULT_MAPPING);
+  const [mapping, setMapping] = useState(getInitialMapping);
   const [listeningAction, setListeningAction] = useState(null);
   const [useJoystickAsDpad, setUseJoystickAsDpad] = useState(true);
   const [playerRole, setPlayerRole] = useState(1); // 1 or 2
   const [editingPlayerTab, setEditingPlayerTab] = useState(1); // 1 or 2
   const [connectedGamepadCount, setConnectedGamepadCount] = useState(0);
   const [playMode, setPlayMode] = useState('local'); // 'local' or 'online'
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('emulamadro_mapping', JSON.stringify(mapping));
+    } catch (e) {}
+  }, [mapping]);
   
   const fileInputRef = useRef(null);
   const listeningActionRef = useRef(null);
@@ -713,6 +727,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         listeningAction={listeningAction}
         setListeningAction={setListeningAction}
         mapping={mapping}
+        setMapping={setMapping}
         activeDebugButtons={activeDebugButtons}
         playerRole={playerRole}
         setPlayerRole={setPlayerRole}
@@ -720,6 +735,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         setEditingPlayerTab={setEditingPlayerTab}
         connectedGamepadCount={connectedGamepadCount}
         multiplayerMode={multiplayerState.mode}
+        romName={typeof romFile === 'string' ? romFile : (romFile?.name || '')}
+        core={core}
       />
 
       <MultiplayerModal

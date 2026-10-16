@@ -1,26 +1,6 @@
-import React from 'react';
-import { X } from 'lucide-react';
-
-function formatMappedButton(val) {
-  if (val === undefined || val === null) return 'Sin Mapear';
-  if (typeof val === 'string' && val.startsWith('key:')) {
-    const rawKey = val.replace('key:', '');
-    if (rawKey.startsWith('Key')) return `Tecla ${rawKey.replace('Key', '')}`;
-    if (rawKey.startsWith('Digit')) return `Tecla ${rawKey.replace('Digit', '')}`;
-    if (rawKey === 'ArrowUp') return 'Tecla 🠉 (Arriba)';
-    if (rawKey === 'ArrowDown') return 'Tecla 🠋 (Abajo)';
-    if (rawKey === 'ArrowLeft') return 'Tecla 🠈 (Izquierda)';
-    if (rawKey === 'ArrowRight') return 'Tecla 🠊 (Derecha)';
-    if (rawKey === 'Space') return 'Tecla Espacio';
-    if (rawKey === 'Enter') return 'Tecla Enter';
-    if (rawKey === 'ShiftLeft' || rawKey === 'ShiftRight') return 'Tecla Shift';
-    return `Tecla ${rawKey}`;
-  }
-  if (typeof val === 'string' && val.startsWith('a')) {
-    return `Eje ${val}`;
-  }
-  return `Botón ${val}`;
-}
+import React, { useMemo } from 'react';
+import { X, RotateCcw, Gamepad, Keyboard, Sparkles, Check, Info } from 'lucide-react';
+import { getGameProfile, formatKeyDisplay, DEFAULT_GAMEPAD } from './gameControlsProfiles';
 
 export default function GamepadSettingsModal({
   showSettings,
@@ -31,15 +11,22 @@ export default function GamepadSettingsModal({
   listeningAction,
   setListeningAction,
   mapping,
+  setMapping,
   activeDebugButtons,
   playerRole,
   setPlayerRole,
   editingPlayerTab,
   setEditingPlayerTab,
   connectedGamepadCount,
-  multiplayerMode
+  multiplayerMode,
+  romName,
+  core
 }) {
   if (!showSettings) return null;
+
+  const gameProfile = useMemo(() => {
+    return getGameProfile(romName || '', core || '');
+  }, [romName, core]);
 
   const getP1Device = () => {
     if (connectedGamepadCount >= 2) return 'Mando Físico (Mando 0)';
@@ -57,78 +44,108 @@ export default function GamepadSettingsModal({
   const p1Device = getP1Device();
   const p2Device = getP2Device();
 
+  const handleResetDefaults = () => {
+    if (!window.confirm(`¿Deseas restablecer los controles del Jugador ${editingPlayerTab} a los valores predeterminados?`)) {
+      return;
+    }
+    if (setMapping) {
+      setMapping(prev => {
+        const next = { ...prev };
+        next[editingPlayerTab] = { ...DEFAULT_GAMEPAD };
+        try {
+          localStorage.setItem('emulamadro_mapping', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    }
+    setListeningAction(null);
+  };
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content controls-modal">
+        {/* Cabecera del modal */}
         <div className="modal-header">
-          <h3>Configuración de Mando</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Gamepad size={22} color="#3b82f6" />
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Mapeo de Controles & Acciones</h3>
+          </div>
           <button onClick={closeSettings} aria-label="Cerrar"><X size={20}/></button>
         </div>
 
-        {/* --- APARTADO 1: MODO DE JUEGO ACTUAL --- */}
-        <div className="settings-section">
-          <span className="section-title">Modo Actual:</span>
-          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.8rem', borderRadius: '8px', fontSize: '0.85rem' }}>
-            {multiplayerMode === 'local' && <span>🏠 <strong>Local</strong> (2 personas en esta PC)</span>}
-            {multiplayerMode === 'host' && <span>🌐 <strong>Online</strong> - Eres el Anfitrión (Jugador 1)</span>}
-            {multiplayerMode === 'guest' && <span>🌐 <strong>Online</strong> - Eres el Invitado (Jugador 2)</span>}
+        {/* Tarjeta de Juego Activo con Acciones Dinámicas */}
+        <div className="game-detected-card">
+          <div className="game-detected-header">
+            <span className="game-detected-badge">
+              <Sparkles size={14} /> Juego Activo Detectado
+            </span>
+            <span className="game-genre-badge">{gameProfile.genre}</span>
+          </div>
+          <h4 className="game-detected-title">{gameProfile.title}</h4>
+          <p className="game-detected-desc">
+            Las acciones mostradas a continuación representan lo que hace cada botón específicamente en este juego. Haz clic sobre cualquier tecla para remapearla a tu gusto.
+          </p>
+        </div>
+
+        {/* Modo de juego y dispositivos */}
+        <div className="settings-section" style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem 0.9rem', borderRadius: '8px', border: '1px solid var(--card-border)', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.82rem' }}>
+            <div>
+              <span style={{ color: 'var(--text-secondary)' }}>Modo: </span>
+              <strong>{multiplayerMode === 'local' ? '🏠 Local (2P en esta PC)' : multiplayerMode === 'host' ? '🌐 Online (Host / P1)' : '🌐 Online (Invitado / P2)'}</strong>
+            </div>
+            <div style={{ display: 'flex', gap: '0.8rem' }}>
+              <span style={{ color: p1Device.startsWith('Teclado') ? '#60a5fa' : '#34d399' }}>
+                P1: {p1Device.startsWith('Teclado') ? '⌨️ Teclado' : '🎮 Mando'}
+              </span>
+              <span style={{ color: p2Device.startsWith('Teclado') ? '#60a5fa' : '#34d399' }}>
+                P2: {p2Device.startsWith('Teclado') ? '⌨️ Teclado' : '🎮 Mando'}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* --- APARTADO 2: ASIGNACIÓN DE DISPOSITIVOS --- */}
-        <div className="settings-section" style={{ background: 'rgba(255,255,255,0.02)', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--card-border)' }}>
-          <span className="section-title" style={{ marginBottom: '0.6rem', fontSize: '0.75rem' }}>Estado de Dispositivos:</span>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Jugador 1:</span>
-              <strong style={{ color: p1Device.startsWith('Teclado') ? '#3b82f6' : '#10b981' }}>
-                {p1Device.startsWith('Teclado') ? '⌨️ ' : '🎮 '} {p1Device}
-              </strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Jugador 2:</span>
-              <strong style={{ color: p2Device.startsWith('Teclado') ? '#3b82f6' : '#10b981' }}>
-                {p2Device.startsWith('Teclado') ? '⌨️ ' : '🎮 '} {p2Device}
-              </strong>
-            </div>
+        {/* Pestañas de Jugador */}
+        <div className="settings-section" style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <span className="section-title" style={{ margin: 0 }}>Configurar Jugador:</span>
+            <button 
+              className="reset-controls-btn"
+              onClick={handleResetDefaults}
+              title="Restablecer controles a valores de fábrica"
+            >
+              <RotateCcw size={13} /> Restablecer Teclas
+            </button>
           </div>
-        </div>
-
-        {/* --- APARTADO 3: PESTAÑAS DE MAPEO --- */}
-        <div className="settings-section">
-          <span className="section-title">Mapear Controles para:</span>
           <div className="tab-container">
             <button 
               className={`tab-btn ${(multiplayerMode === 'local' ? editingPlayerTab === 1 : multiplayerMode === 'host') ? 'active' : ''}`}
               onClick={() => { if (multiplayerMode === 'local') setEditingPlayerTab(1); }}
               disabled={multiplayerMode === 'guest'}
-              style={{ opacity: multiplayerMode === 'guest' ? 0.3 : 1 }}
+              style={{ opacity: multiplayerMode === 'guest' ? 0.35 : 1 }}
             >
-              Jugador 1
+              Jugador 1 {playerRole === 1 && multiplayerMode !== 'local' ? '(Tú)' : ''}
             </button>
             <button 
               className={`tab-btn ${(multiplayerMode === 'local' ? editingPlayerTab === 2 : multiplayerMode === 'guest') ? 'active' : ''}`}
               onClick={() => { if (multiplayerMode === 'local') setEditingPlayerTab(2); }}
               disabled={multiplayerMode === 'host'}
-              style={{ opacity: multiplayerMode === 'host' ? 0.3 : 1 }}
+              style={{ opacity: multiplayerMode === 'host' ? 0.35 : 1 }}
             >
-              Jugador 2
+              Jugador 2 {playerRole === 2 && multiplayerMode !== 'local' ? '(Tú)' : ''}
             </button>
           </div>
         </div>
 
-        {activeDebugButtons && (
-          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.5rem', borderRadius: '4px', marginBottom: '1rem', color: '#10b981', fontSize: '0.9rem' }}>
-            <span>Hardware detectando: </span>
-            {activeDebugButtons.length > 0 ? (
-              <strong>{activeDebugButtons.join(', ')}</strong>
-            ) : (
-              <span style={{ color: '#6b7280' }}>Nada presionado</span>
-            )}
+        {/* Indicador de Hardware detectando */}
+        {activeDebugButtons && activeDebugButtons.length > 0 && (
+          <div className="debug-hardware-box">
+            <span>Hardware detectando en vivo: </span>
+            <strong>{activeDebugButtons.join(', ')}</strong>
           </div>
         )}
-        
+
+        {/* Toggle para usar Stick como D-Pad */}
         <div className="toggle-container" style={{ marginBottom: '1rem' }}>
           <label className="toggle-label">
             <input 
@@ -136,31 +153,80 @@ export default function GamepadSettingsModal({
               checked={useJoystickAsDpad} 
               onChange={(e) => setUseJoystickAsDpad(e.target.checked)}
             />
-            Usar Joystick como flechas (D-Pad)
+            <span>Usar Stick analógico del mando como flechas de movimiento</span>
           </label>
         </div>
 
-        <div className="mapping-grid">
-          {currentCoreActions.map(action => (
-            <div key={action} className="mapping-row">
-              <span className="mapping-label">{action}</span>
-              <button 
-                className={`mapping-btn ${listeningAction === action ? 'listening' : ''}`}
+        {/* Lista de Acciones y Mapeo Adaptativo */}
+        <div className="custom-mapping-list">
+          {currentCoreActions.map(action => {
+            const actionInfo = gameProfile.actions?.[action] || {
+              label: `Acción ${action}`,
+              icon: '🎮',
+              desc: `Botón original de consola ${action}`,
+              hardware: `Botón ${action}`
+            };
+
+            const isListening = listeningAction === action;
+            const keyInfo = formatKeyDisplay(action, editingPlayerTab, mapping, isListening, connectedGamepadCount);
+
+            return (
+              <div 
+                key={action} 
+                className={`action-mapping-card ${isListening ? 'listening' : ''}`}
                 onClick={() => setListeningAction(action)}
               >
-                {listeningAction === action ? 'Presiona Mando o Teclado...' : formatMappedButton(mapping[editingPlayerTab]?.[action])}
-              </button>
-            </div>
-          ))}
+                {/* Lado izquierdo: Acción contextual real del juego */}
+                <div className="action-meta">
+                  <div className="action-icon-wrapper">
+                    <span className="action-emoji">{actionInfo.icon}</span>
+                  </div>
+                  <div className="action-text-group">
+                    <div className="action-title-row">
+                      <strong className="action-name">{actionInfo.label}</strong>
+                      <span className="action-hardware-chip">{actionInfo.hardware || action}</span>
+                    </div>
+                    {actionInfo.desc && (
+                      <span className="action-desc">{actionInfo.desc}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lado derecho: Tecla o botón asignado actualmente */}
+                <div className="action-bind-wrapper">
+                  <button 
+                    className={`key-badge-btn ${isListening ? 'active-listening' : keyInfo.isCustom ? 'custom' : 'default'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setListeningAction(isListening ? null : action);
+                    }}
+                    title="Haz clic para cambiar esta tecla"
+                  >
+                    {isListening ? (
+                      <span className="listening-pulse">
+                        ⚡ ¡Presiona una tecla o mando!
+                      </span>
+                    ) : (
+                      <span className="key-display-text">
+                        {keyInfo.text}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+        {/* Footer del Modal */}
+        <div style={{ marginTop: '1.4rem', textAlign: 'center' }}>
           <button 
             className="role-btn active"
-            style={{ padding: '0.8rem 2rem', width: '100%', fontSize: '0.95rem' }}
+            style={{ padding: '0.85rem 2rem', width: '100%', fontSize: '1rem', fontWeight: 'bold' }}
             onClick={closeSettings}
           >
-            Guardar y Cerrar
+            <Check size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+            Guardar y Regresar al Juego
           </button>
         </div>
       </div>

@@ -65,6 +65,7 @@ export function useVirtualGamepad({
   // Track keyboard keys pressed globally
   useEffect(() => {
     const handleGameKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       activeKeyboardKeysRef.current.add(e.code);
     };
     const handleGameKeyUp = (e) => {
@@ -316,6 +317,11 @@ export function useVirtualGamepad({
             if (multiplayerMode === 'guest' && sendGuestInput) {
               sendGuestInput(action, true);
             } else if (multiplayerMode !== 'guest') {
+              if (nostalgistRef.current) {
+                try {
+                  nostalgistRef.current.pressDown({ button: action.toLowerCase(), player: playerNum });
+                } catch (e) {}
+              }
               sendKey(keyMap[action], 'keydown');
             }
           } else if (!isPressed && wasPressed) {
@@ -323,6 +329,11 @@ export function useVirtualGamepad({
             if (multiplayerMode === 'guest' && sendGuestInput) {
               sendGuestInput(action, false);
             } else if (multiplayerMode !== 'guest') {
+              if (nostalgistRef.current) {
+                try {
+                  nostalgistRef.current.pressUp({ button: action.toLowerCase(), player: playerNum });
+                } catch (e) {}
+              }
               sendKey(keyMap[action], 'keyup');
             }
           }
