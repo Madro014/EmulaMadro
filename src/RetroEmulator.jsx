@@ -365,9 +365,18 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         console.log('[SaveManager] Loading SRAM for:', romFile.name);
         const savedSramBuffer = await loadSram(romFile.name);
 
+        const resolvedRomName = romFile.name || (core === 'fbalpha2012_neogeo' ? 'mslug3.zip' : 'game.bin');
+        const resolvedRomContent = (romFile.isCloud && romFile.url) ? romFile.url : romFile;
+
         const launchOptions = {
           core: core,
-          rom: romFile.isCloud ? romFile.url : romFile,
+          rom: (core === 'fbalpha2012_neogeo') ? [
+            { fileName: resolvedRomName, fileContent: resolvedRomContent },
+            { fileName: 'neogeo.zip', fileContent: '/neogeo.zip' }
+          ] : {
+            fileName: resolvedRomName,
+            fileContent: resolvedRomContent
+          },
           element: canvas,
           retroarchConfig: {
             pause_nonactive: false,
@@ -430,6 +439,10 @@ export default function RetroEmulator({ romFile, core, onStop }) {
                 if (fs.analyzePath(sysZip).exists && !fs.analyzePath(contentZip).exists) {
                   const data = fs.readFile(sysZip);
                   fs.writeFile(contentZip, data);
+                }
+                if (fs.analyzePath(contentZip).exists && !fs.analyzePath(sysZip).exists) {
+                  const data = fs.readFile(contentZip);
+                  fs.writeFile(sysZip, data);
                 }
               }
             } catch (e) {
