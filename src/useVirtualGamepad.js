@@ -34,7 +34,8 @@ const CORE_BUTTONS = {
   fceumm: ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'SELECT', 'START'],
   snes9x: ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'Y', 'X', 'L', 'R', 'SELECT', 'START'],
   mgba: ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'L', 'R', 'SELECT', 'START'],
-  genesis_plus_gx: ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'Y', 'X', 'L', 'R', 'SELECT', 'START']
+  genesis_plus_gx: ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'Y', 'X', 'L', 'R', 'SELECT', 'START'],
+  fbalpha2012_neogeo: ['UP', 'DOWN', 'LEFT', 'RIGHT', 'B', 'A', 'Y', 'X', 'SELECT', 'START']
 };
 
 export function useVirtualGamepad({

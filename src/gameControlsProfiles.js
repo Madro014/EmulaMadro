@@ -192,6 +192,25 @@ const GAME_PROFILES_DATABASE = [
     }
   },
 
+  // Metal Slug Series (Neo Geo Arcade)
+  {
+    pattern: /metal\s*slug|mslug/i,
+    title: 'Metal Slug 3',
+    genre: 'Run & Gun / Neo Geo Arcade',
+    actions: {
+      UP: { label: 'Apuntar Hacia Arriba', icon: '⬆️', desc: 'Disparar verticalmente al cielo', hardware: 'Joystick 🠉' },
+      DOWN: { label: 'Agacharse / Apuntar Abajo', icon: '⬇️', desc: 'Agacharse o apuntar cañón hacia abajo', hardware: 'Joystick 🠋' },
+      LEFT: { label: 'Moverse a la Izquierda', icon: '⬅️', desc: 'Retroceder o girar tanque/vehículo', hardware: 'Joystick 🠈' },
+      RIGHT: { label: 'Avanzar a la Derecha', icon: '➡️', desc: 'Avanzar disparando', hardware: 'Joystick 🠊' },
+      B: { label: 'Disparar Arma (Heavy Machine Gun...)', icon: '🔫', desc: 'Fuego principal / Disparo de cañón', hardware: 'Botón A (NeoGeo)' },
+      A: { label: 'Saltar', icon: '🦘', desc: 'Salto táctico de infantería', hardware: 'Botón B (NeoGeo)' },
+      Y: { label: 'Lanzar Granada / Bomba', icon: '💣', desc: 'Arrojar explosivo pesado', hardware: 'Botón C (NeoGeo)' },
+      X: { label: 'Entrar / Salir del Vehículo (Slug)', icon: '🚙', desc: 'Montar o eyectarse del Metal Slug / Tanque', hardware: 'Botón D (NeoGeo)' },
+      SELECT: { label: 'Insertar Ficha / Moneda (Coin)', icon: '🪙', desc: 'Insertar crédito arcade para jugar', hardware: 'Coin' },
+      START: { label: 'Iniciar Misión / Pausa', icon: '⏸️', desc: 'Start 1P / Pausar combate', hardware: 'Start 1P' }
+    }
+  },
+
   // Teenage Mutant Ninja Turtles / Turtles in Time (SNES)
   {
     pattern: /turtles|tmnt|mutant\s*hero\s*turtles/i,

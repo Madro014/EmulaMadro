@@ -29,3 +29,5 @@ dist-ssr
 
 # Carpetas ignoradas
 v1/
+Rooms/mslug3/
+Rooms/*.zip

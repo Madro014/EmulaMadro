@@ -418,6 +418,26 @@ export default function RetroEmulator({ romFile, core, onStop }) {
           launchOptions.sram = new File([savedSramBuffer], `${baseName}.srm`);
         }
 
+        if (core === 'fbalpha2012_neogeo') {
+          launchOptions.bios = ['neogeo.zip'];
+          launchOptions.resolveBios = () => '/neogeo.zip';
+          launchOptions.beforeLaunch = async (nostalgist) => {
+            try {
+              const fs = nostalgist.getEmscriptenFS();
+              if (fs && fs.analyzePath) {
+                const sysZip = '/home/web_user/retroarch/userdata/system/neogeo.zip';
+                const contentZip = '/home/web_user/retroarch/userdata/content/neogeo.zip';
+                if (fs.analyzePath(sysZip).exists && !fs.analyzePath(contentZip).exists) {
+                  const data = fs.readFile(sysZip);
+                  fs.writeFile(contentZip, data);
+                }
+              }
+            } catch (e) {
+              console.warn('Error sincronizando neogeo.zip en carpeta de contenidos:', e);
+            }
+          };
+        }
+
         const emu = await Nostalgist.launch(launchOptions);
 
         if (!active) {
