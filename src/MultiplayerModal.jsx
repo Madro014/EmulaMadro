@@ -346,15 +346,13 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {room.has_password && <span className="room-lock" title="Requiere contraseña">🔒</span>}
-                          {isCreator && (
-                            <button 
-                              className="delete-room-card-btn"
-                              title="Eliminar esta sala (eres el creador)"
-                              onClick={(e) => handleDeleteRoom(room.id, e)}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
+                          <button 
+                            className="delete-room-card-btn"
+                            title={isCreator ? "Eliminar esta sala (eres el creador)" : "Eliminar esta sala de la nube"}
+                            onClick={(e) => handleDeleteRoom(room.id, e)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                     );

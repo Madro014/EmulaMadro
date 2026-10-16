@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Gamepad2, Upload, Cloud, Play, ImagePlus, Loader2 } from 'lucide-react'
+import { Gamepad2, Upload, Cloud, Play, ImagePlus, Loader2, Trash2 } from 'lucide-react'
 import RetroEmulator from './RetroEmulator'
 import { supabase } from './supabaseClient'
 import './index.css'
@@ -7,10 +7,22 @@ import './index.css'
 import { MorphIcon } from "morphicons/react";
 import { Image as ImageIcon, Upload as UploadIcon } from "lucide";
 
-function RomCard({ rom, getCoverUrl, failedImages, setFailedImages, handleCoverUpload, playCloudRom, detectCore }) {
+function RomCard({ rom, getCoverUrl, failedImages, setFailedImages, handleCoverUpload, playCloudRom, detectCore, handleDeleteCloudRom }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const coverUrl = getCoverUrl(rom.name);
   const hasFailed = failedImages.has(rom.name);
+
+  const onDelete = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDeleting(true);
+    try {
+      await handleDeleteCloudRom(rom.name);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div 
@@ -43,15 +55,28 @@ function RomCard({ rom, getCoverUrl, failedImages, setFailedImages, handleCoverU
         <div className="play-overlay"><Play size={32} fill="white"/></div>
       </div>
       
+      {/* Botón para eliminar ROM de la nube */}
+      <button
+        className="delete-rom-btn"
+        onClick={onDelete}
+        disabled={isDeleting}
+        title="Eliminar juego de la nube"
+        aria-label={`Eliminar ${rom.name} de la nube`}
+        style={{ zIndex: 3 }}
+      >
+        {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+      </button>
+
+      {/* Botón para cambiar carátula */}
       <label 
         className="edit-cover-btn" 
         onClick={e => e.stopPropagation()} 
         title="Cambiar carátula"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{ zIndex: 2 }}
+        style={{ zIndex: 3 }}
       >
-        <MorphIcon icon={isHovered ? UploadIcon : ImageIcon} size={18} color="white" />
+        <MorphIcon icon={isHovered ? UploadIcon : ImageIcon} size={16} color="white" />
         <input type="file" accept="image/*" onChange={(e) => handleCoverUpload(e, rom.name)} aria-label="Subir nueva carátula" />
       </label>
 
@@ -252,6 +277,43 @@ function App() {
     setRomFile({ name: romName, url: data.publicUrl, isCloud: true });
   }
 
+  const handleDeleteCloudRom = async (romName) => {
+    const displayName = romName.replace(/\.[^/.]+$/, "");
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar "${displayName}" de tu biblioteca en la nube?\n\nEsta acción eliminará el archivo de Supabase y no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const baseName = romName.replace(/\.[^/.]+$/, "");
+      const customCover = cloudCovers.find(c => c.name.toLowerCase().startsWith(baseName.toLowerCase() + '.'));
+      
+      const filesToRemove = [`roms/${romName}`];
+      if (customCover) {
+        filesToRemove.push(`covers/${customCover.name}`);
+      }
+
+      const { error } = await supabase.storage.from('emulamadro').remove(filesToRemove);
+      if (error) {
+        console.error("Error eliminando ROM de la nube:", error);
+        alert(`No se pudo eliminar el juego: ${error.message || 'Error del servidor'}`);
+        return;
+      }
+
+      setCloudRoms(prev => prev.filter(r => r.name !== romName));
+      if (customCover) {
+        setCloudCovers(prev => prev.filter(c => c.name !== customCover.name));
+      }
+      setFailedImages(prev => {
+        const next = new Set(prev);
+        next.delete(romName);
+        return next;
+      });
+    } catch (err) {
+      console.error("Error eliminando ROM:", err);
+      alert("Ocurrió un error inesperado al eliminar el juego.");
+    }
+  };
+
   return (
     <div className="app-container">
       <header className="header">
@@ -295,7 +357,7 @@ function App() {
                   ) : cloudRoms.length > 0 ? (
                     cloudRoms.map((rom) => (
                       <RomCard
-                        key={rom.id}
+                        key={rom.id || rom.name}
                         rom={rom}
                         getCoverUrl={getCoverUrl}
                         failedImages={failedImages}
@@ -303,6 +365,7 @@ function App() {
                         handleCoverUpload={handleCoverUpload}
                         playCloudRom={playCloudRom}
                         detectCore={detectCore}
+                        handleDeleteCloudRom={handleDeleteCloudRom}
                       />
                     ))
                   ) : (
