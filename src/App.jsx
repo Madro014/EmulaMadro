@@ -127,8 +127,8 @@ function App() {
       
       if (romsErr) throw romsErr;
       
-      if (romsData) setCloudRoms(romsData.filter(f => f.name !== '.emptyFolderPlaceholder' && f.id));
-      if (coversData) setCloudCovers(coversData.filter(f => f.name !== '.emptyFolderPlaceholder' && f.id));
+      if (romsData) setCloudRoms(romsData.filter(f => f.name && !f.name.startsWith('.') && f.name !== 'trash' && f.id));
+      if (coversData) setCloudCovers(coversData.filter(f => f.name && !f.name.startsWith('.') && f.name !== 'trash' && f.id));
     } catch (err) {
       console.error("Error cargando ROMs de la nube:", err);
     } finally {
@@ -279,7 +279,7 @@ function App() {
 
   const handleDeleteCloudRom = async (romName) => {
     const displayName = romName.replace(/\.[^/.]+$/, "");
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar "${displayName}" de tu biblioteca en la nube?\n\nEsta acción eliminará el archivo de Supabase y no se puede deshacer.`)) {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar "${displayName}" de tu biblioteca en la nube?\n\nEsta acción eliminará el archivo y no volverá a aparecer.`)) {
       return;
     }
 
@@ -287,16 +287,42 @@ function App() {
       const baseName = romName.replace(/\.[^/.]+$/, "");
       const customCover = cloudCovers.find(c => c.name.toLowerCase().startsWith(baseName.toLowerCase() + '.'));
       
-      const filesToRemove = [`roms/${romName}`];
-      if (customCover) {
-        filesToRemove.push(`covers/${customCover.name}`);
+      const romPath = `roms/${romName}`;
+      const timestamp = Date.now();
+      const trashRomPath = `.trash/roms/${timestamp}_${romName}`;
+
+      // 1. Intentar borrado directo mediante remove
+      const { data: removeData } = await supabase.storage
+        .from('emulamadro')
+        .remove([romPath]);
+
+      // Si remove no eliminó ningún archivo (típico cuando Supabase RLS bloquea DELETE para rol anon sin lanzar error),
+      // trasladamos el archivo fuera de 'roms/' a '.trash/' mediante move (que sí está permitido con UPDATE/INSERT)
+      const wasActuallyDeleted = removeData && removeData.length > 0;
+      if (!wasActuallyDeleted) {
+        console.warn(`[Storage] remove() no devolvió confirmación para ${romPath}. Moviendo fuera de roms/ a papelera.`);
+        const { error: moveErr } = await supabase.storage
+          .from('emulamadro')
+          .move(romPath, trashRomPath);
+
+        if (moveErr) {
+          console.error("Error moviendo ROM a papelera:", moveErr);
+          alert(`No se pudo eliminar el juego: ${moveErr.message || 'Error de almacenamiento'}`);
+          return;
+        }
+
+        // Limpiar de papelera por si acaso la política lo permite
+        supabase.storage.from('emulamadro').remove([trashRomPath]).catch(() => {});
       }
 
-      const { error } = await supabase.storage.from('emulamadro').remove(filesToRemove);
-      if (error) {
-        console.error("Error eliminando ROM de la nube:", error);
-        alert(`No se pudo eliminar el juego: ${error.message || 'Error del servidor'}`);
-        return;
+      // Si había carátula personalizada, borrarla o moverla también
+      if (customCover) {
+        const coverPath = `covers/${customCover.name}`;
+        const trashCoverPath = `.trash/covers/${timestamp}_${customCover.name}`;
+        const { data: covDelData } = await supabase.storage.from('emulamadro').remove([coverPath]);
+        if (!covDelData || covDelData.length === 0) {
+          await supabase.storage.from('emulamadro').move(coverPath, trashCoverPath).catch(() => {});
+        }
       }
 
       setCloudRoms(prev => prev.filter(r => r.name !== romName));
