@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Nostalgist } from 'nostalgist';
-import { Gamepad2, Maximize, Loader2, Settings, X, Save, Upload, HardDriveDownload, MessageSquare, Wifi } from 'lucide-react';
-import { saveState as beSaveState, loadState as beLoadState, saveSram, loadSram } from '../backend/saveManager';
+import { Gamepad2, Maximize, Loader2, Settings, X, Save, Upload, HardDriveDownload, MessageSquare, Wifi, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { saveSram, loadSram } from '../backend/saveManager';
 import GamepadSettingsModal from './GamepadSettingsModal';
 import MultiplayerModal from './MultiplayerModal';
 import EmulatorToolbar from './EmulatorToolbar';
@@ -283,6 +283,19 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   }, []);
 
   const {
+    slots,
+    activeSlot,
+    setActiveSlot,
+    busy,
+    toast: saveToast,
+    strategyKey,
+    activeStrategyName,
+    activeStrategyClass,
+    changeStrategy,
+    saveSlot,
+    loadSlot,
+    deleteSlot,
+    refreshSlots,
     handleQuickSave,
     handleLoadStateBrowser,
     handleDownloadSave,
@@ -568,6 +581,19 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         </div>
       )}
 
+      {saveToast && (
+        <div className={`strategy-toast ${saveToast.type || 'ok'}`} role="status" aria-live="polite">
+          {saveToast.type === 'err' ? (
+            <AlertCircle size={18} />
+          ) : saveToast.type === 'info' ? (
+            <Info size={18} />
+          ) : (
+            <CheckCircle2 size={18} />
+          )}
+          <span>{saveToast.msg}</span>
+        </div>
+      )}
+
       {/* Netplay HUD Estilo Tenkaichi 3 (Ping RTT, Estado de Conexión, Chat y Código) */}
       {multiplayerState.mode !== 'local' && (
         <div className="netplay-hud">
@@ -747,6 +773,19 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         fileInputRef={fileInputRef}
         isMultiplayerConnected={multiplayerState.mode !== 'local'}
         toggleChat={() => setShowChatInput(prev => !prev)}
+        isGuest={multiplayerState.mode === 'guest'}
+        slots={slots}
+        activeSlot={activeSlot}
+        busy={busy}
+        strategyKey={strategyKey}
+        activeStrategyName={activeStrategyName}
+        activeStrategyClass={activeStrategyClass}
+        onSelectSlot={setActiveSlot}
+        onChangeStrategy={changeStrategy}
+        onSaveSlot={saveSlot}
+        onLoadSlot={loadSlot}
+        onDeleteSlot={deleteSlot}
+        onRefreshSlots={refreshSlots}
       />
 
       <button className="stop-btn" onClick={onStop}>Cambiar Juego</button>

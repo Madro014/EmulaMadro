@@ -1738,6 +1738,422 @@ body {
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* =========================================================
+   PATRÓN STRATEGY: GESTOR DE SLOTS Y SELECTOR EN TIEMPO REAL
+   ========================================================= */
+
+.toolbar-strategy-wrapper {
+  width: 100%;
+  max-width: 1024px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  z-index: 20;
+}
+
+.slots-toggle-btn {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fde68a;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.slots-toggle-btn:hover,
+.slots-toggle-btn.active {
+  background: rgba(245, 158, 11, 0.28);
+  border-color: #fbbf24;
+  color: #fffbeb;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+}
+
+.strategy-mini-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.strategy-mini-chip.local,
+.strategy-pill.local {
+  background: rgba(59, 130, 246, 0.22);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  color: #93c5fd;
+}
+
+.strategy-mini-chip.cloud,
+.strategy-pill.cloud {
+  background: rgba(16, 185, 129, 0.22);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  color: #6ee7b7;
+}
+
+.strategy-mini-chip.file,
+.strategy-pill.file {
+  background: rgba(168, 85, 247, 0.22);
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  color: #e9d5ff;
+}
+
+.slots-drawer {
+  width: 100%;
+  max-width: 720px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.12);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.slots-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: rgba(2, 6, 23, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  flex-wrap: wrap;
+}
+
+.slots-drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #f8fafc;
+  flex-wrap: wrap;
+}
+
+.strategy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.slots-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.slots-icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.slots-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+}
+
+.slots-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.strategy-selector-box {
+  padding: 0.85rem 1.1rem;
+  background: rgba(2, 6, 23, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.strategy-selector-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.strategy-selector-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.strategy-context-chip {
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  padding: 0.14rem 0.5rem;
+}
+
+.strategy-select-input {
+  width: 100%;
+  background: #1e293b;
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.strategy-select-input:focus,
+.strategy-select-input:hover:not(:disabled) {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.strategy-select-input:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.slots-guest-notice {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+  font-size: 0.78rem;
+  padding: 0.5rem 1.1rem;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.slots-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  gap: 0.6rem;
+}
+
+.slot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(30, 41, 59, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.slot-row.active-slot {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(30, 41, 59, 0.85);
+}
+
+.slot-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.slot-row-info-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  flex: 1;
+}
+
+.slot-row-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  color: #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.slot-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+}
+
+.slot-badge.active {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
+.slot-badge.saved {
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+}
+
+.slot-badge.empty {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.slot-badge.legacy {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fcd34d;
+}
+
+.slot-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.slot-filename {
+  font-family: monospace;
+  color: #cbd5e1;
+}
+
+.slot-row-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.slot-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.slot-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.slot-action-btn.save {
+  background: #2563eb;
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.slot-action-btn.save:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.slot-action-btn.load {
+  background: #059669;
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.slot-action-btn.load:hover:not(:disabled) {
+  background: #047857;
+}
+
+.slot-action-btn.secondary {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: rgba(192, 132, 252, 0.4);
+  color: #e9d5ff;
+  padding: 0.42rem 0.55rem;
+}
+
+.slot-action-btn.secondary:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.45);
+}
+
+.slot-action-btn.delete {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  padding: 0.42rem 0.52rem;
+}
+
+.slot-action-btn.delete:hover:not(:disabled) {
+  background: #ef4444;
+  color: white;
+}
+
+.strategy-toast {
+  position: fixed;
+  top: 1.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3500;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: white;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease-out;
+  max-width: 92vw;
+}
+
+.strategy-toast.ok {
+  background: rgba(5, 150, 105, 0.94);
+  border: 1px solid rgba(52, 211, 153, 0.6);
+}
+
+.strategy-toast.err {
+  background: rgba(220, 38, 38, 0.94);
+  border: 1px solid rgba(248, 113, 113, 0.6);
+}
+
+.strategy-toast.info {
+  background: rgba(37, 99, 235, 0.94);
+  border: 1px solid rgba(96, 165, 250, 0.6);
+}
+
+.emulator-container:fullscreen .toolbar-strategy-wrapper,
+.emulator-container:fullscreen .slots-drawer {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .slot-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .slot-row-buttons {
+    justify-content: flex-end;
+  }
+}
+
+
 
 
 

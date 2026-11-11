@@ -1,109 +1,233 @@
-import { useRef } from 'react';
-import { saveState as beSaveState, loadState as beLoadState } from '../backend/saveManager';
+// src/useSaveStates.js
+import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  SaveManagerContext,
+  AVAILABLE_STRATEGIES,
+  stripRomExtension,
+} from './strategies/saveStrategies';
 
+/**
+ * PARTICIPANTE 4: Client (Cliente en React)
+ * Configura el Contexto (SaveManagerContext) con la Estrategia Concreta seleccionada
+ * por el usuario y expone operaciones desacopladas de persistencia.
+ */
 export function useSaveStates({
   nostalgistRef,
   romFile,
-  emuWrapperRef
+  emuWrapperRef,
 }) {
-  const savingRef = useRef(false);
+  const [strategyKey, setStrategyKey] = useState('local');
+  const [activeSlot, setActiveSlot] = useState(1);
+  const [slots, setSlots] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const focusCanvas = () => {
+  const contextRef = useRef(new SaveManagerContext(AVAILABLE_STRATEGIES.local));
+  const savingRef = useRef(false);
+  const refreshSeqRef = useRef(0);
+  const toastTimerRef = useRef(null);
+
+  const rawFileName =
+    typeof romFile === 'string'
+      ? decodeURIComponent(romFile.split('/').pop() || '')
+      : romFile?.name || (romFile?.url ? decodeURIComponent(romFile.url.split('/').pop() || '') : '');
+
+  const romName = rawFileName ? stripRomExtension(rawFileName) : null;
+
+  const activeStrategyObj = AVAILABLE_STRATEGIES[strategyKey] || AVAILABLE_STRATEGIES.local;
+  const activeStrategyName = activeStrategyObj.getName();
+  const activeStrategyClass = activeStrategyObj.constructor.name;
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const showToast = useCallback((msg, type = 'ok') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ msg, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  const focusCanvas = useCallback(() => {
     setTimeout(() => {
-      const canvas = emuWrapperRef.current?.querySelector('canvas');
+      const canvas = emuWrapperRef?.current?.querySelector('canvas');
       if (canvas) canvas.focus();
     }, 100);
-  };
+  }, [emuWrapperRef]);
 
-  const handleQuickSave = async () => {
-    if (!nostalgistRef.current || savingRef.current) return;
+  const refreshSlots = useCallback(async (customRomName = romName) => {
+    if (!customRomName) {
+      setSlots([]);
+      return;
+    }
+    const seq = ++refreshSeqRef.current;
     try {
-      savingRef.current = true;
-      const { state } = await nostalgistRef.current.saveState();
+      const data = await contextRef.current.executeList(customRomName);
+      if (seq === refreshSeqRef.current) {
+        setSlots(data);
+      }
+    } catch {
+      if (seq === refreshSeqRef.current) {
+        setSlots([]);
+      }
+    }
+  }, [romName]);
+
+  useEffect(() => {
+    refreshSlots();
+  }, [refreshSlots]);
+
+  /**
+   * Cambia dinámicamente la estrategia concreta en tiempo de ejecución sin recargar el emulador.
+   */
+  const changeStrategy = useCallback(async (newKey) => {
+    const selectedStrategy = AVAILABLE_STRATEGIES[newKey];
+    if (!selectedStrategy) return;
+
+    contextRef.current.setStrategy(selectedStrategy);
+    setStrategyKey(newKey);
+    await refreshSlots();
+    showToast(`Estrategia activa: ${selectedStrategy.getName()}`, 'ok');
+    focusCanvas();
+  }, [refreshSlots, showToast, focusCanvas]);
+
+  const saveSlot = useCallback(async (slot = activeSlot) => {
+    const nostalgist = nostalgistRef?.current;
+    if (!nostalgist || !romName || savingRef.current) return;
+
+    savingRef.current = true;
+    setBusy(true);
+    try {
+      const { state } = await nostalgist.saveState();
       if (!state) throw new Error('El emulador no devolvió un estado válido.');
 
-      const result = await beSaveState(romFile.name, state);
-      const cloudMsg = result.cloud ? '☁️ y en la nube.' : '(solo local)';
-      alert(`✅ Estado guardado ${cloudMsg}`);
-      
-      focusCanvas();
-    } catch (err) {
-      console.error("Error al guardar estado:", err);
-      alert("Error al guardar el estado: " + (err.message || "Desconocido"));
+      await contextRef.current.executeSave(romName, slot, state);
+      setActiveSlot(Number(slot));
+      await refreshSlots();
+      showToast(`Guardado en Slot ${slot} vía ${contextRef.current.getStrategyName()}`, 'ok');
+    } catch (e) {
+      console.error('Error al guardar estado:', e);
+      showToast(`Error al guardar: ${e.message || 'Desconocido'}`, 'err');
     } finally {
       savingRef.current = false;
+      setBusy(false);
+      focusCanvas();
     }
-  };
+  }, [nostalgistRef, romName, activeSlot, refreshSlots, showToast, focusCanvas]);
 
-  const handleLoadStateBrowser = async () => {
-    if (!nostalgistRef.current || savingRef.current) return;
+  const loadSlot = useCallback(async (slot = activeSlot, options) => {
+    const nostalgist = nostalgistRef?.current;
+    if (!nostalgist || !romName || savingRef.current) return;
+
+    savingRef.current = true;
+    setBusy(true);
     try {
-      savingRef.current = true;
-      const buffer = await beLoadState(romFile.name);
-      if (!buffer) {
-        alert('No se encontró ningún Estado guardado para este juego.\n\nGuarda primero con el botón Guardar (Local).');
-        return;
+      const blob = await contextRef.current.executeLoad(romName, slot, options);
+      if (!blob) throw new Error('Estado vacío o corrupto.');
+
+      await nostalgist.loadState(blob);
+      setActiveSlot(Number(slot));
+      await refreshSlots();
+      showToast(`Slot ${slot} cargado desde ${contextRef.current.getStrategyName()}`, 'ok');
+    } catch (e) {
+      if (e.message?.includes('cancelada')) {
+        showToast('Carga de archivo .state cancelada.', 'info');
+      } else {
+        console.error('Error al cargar estado:', e);
+        showToast(`Error al cargar: ${e.message || 'Desconocido'}`, 'err');
       }
-      const stateBlob = new Blob([buffer], { type: 'application/octet-stream' });
-      await nostalgistRef.current.loadState(stateBlob);
-      alert('✅ Estado cargado exitosamente.');
-    } catch (err) {
-      console.error("Error al cargar estado:", err);
-      alert("Error al cargar el estado.");
     } finally {
       savingRef.current = false;
+      setBusy(false);
       focusCanvas();
     }
-  };
+  }, [nostalgistRef, romName, activeSlot, refreshSlots, showToast, focusCanvas]);
 
-  const handleDownloadSave = async () => {
-    if (!nostalgistRef.current || savingRef.current) return;
+  const deleteSlot = useCallback(async (slot) => {
+    if (!romName || savingRef.current) return;
+
+    setBusy(true);
     try {
-      savingRef.current = true;
-      const { state } = await nostalgistRef.current.saveState();
-      if (!state) throw new Error('No se pudo obtener el estado.');
-      beSaveState(romFile.name, state).catch(console.error);
-      const url = URL.createObjectURL(state);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${romFile.name.replace(/\.[^/.]+$/, "")}.state`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      alert("Archivo de estado descargado (.state).");
-      
+      await contextRef.current.executeDelete(romName, slot);
+      await refreshSlots();
+      showToast(`Slot ${slot} eliminado (${contextRef.current.getStrategyName()})`, 'ok');
+    } catch (e) {
+      console.error('Error eliminando slot:', e);
+      showToast(`Error: ${e.message || 'No se pudo eliminar'}`, 'err');
+    } finally {
+      setBusy(false);
       focusCanvas();
-    } catch (err) {
-      console.error("Error al descargar estado:", err);
-      alert("Error al generar el archivo de respaldo: " + (err.message || "Desconocido"));
+    }
+  }, [romName, refreshSlots, showToast, focusCanvas]);
+
+  // Acciones rápidas compatibles con la barra de herramientas (delegan al Contexto)
+  const handleQuickSave = useCallback(() => saveSlot(activeSlot), [saveSlot, activeSlot]);
+  const handleLoadStateBrowser = useCallback(() => loadSlot(activeSlot), [loadSlot, activeSlot]);
+
+  const handleDownloadSave = useCallback(async () => {
+    const nostalgist = nostalgistRef?.current;
+    if (!nostalgist || !romName || savingRef.current) return;
+
+    savingRef.current = true;
+    setBusy(true);
+    try {
+      const { state } = await nostalgist.saveState();
+      if (!state) throw new Error('No se pudo obtener el estado del emulador.');
+
+      await AVAILABLE_STRATEGIES.file.save(romName, activeSlot, state);
+      if (strategyKey === 'file') {
+        await refreshSlots();
+      }
+      showToast(`Respaldo .state descargado (Slot ${activeSlot})`, 'ok');
+    } catch (e) {
+      console.error('Error al descargar respaldo .state:', e);
+      showToast(`Error al exportar: ${e.message || 'Desconocido'}`, 'err');
     } finally {
       savingRef.current = false;
+      setBusy(false);
+      focusCanvas();
     }
-  };
+  }, [nostalgistRef, romName, activeSlot, strategyKey, refreshSlots, showToast, focusCanvas]);
 
-  const handleUploadState = async (event) => {
-    const file = event.target.files[0];
-    if (!file || !nostalgistRef.current) return;
+  const handleUploadState = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !nostalgistRef?.current) return;
 
     try {
       await nostalgistRef.current.loadState(file);
-      alert('✅ Estado cargado exitosamente desde archivo.');
+      showToast(`Estado cargado desde "${file.name}"`, 'ok');
     } catch (err) {
-      console.error("Error al cargar archivo de estado:", err);
-      alert("Error al subir el archivo de estado: " + (err.message || "Desconocido"));
+      console.error('Error al cargar archivo de estado:', err);
+      showToast(`Error al subir .state: ${err.message || 'Desconocido'}`, 'err');
     } finally {
       event.target.value = '';
       focusCanvas();
     }
-  };
+  }, [nostalgistRef, showToast, focusCanvas]);
 
   return {
+    // API del Patrón Strategy (Cliente)
+    slots,
+    activeSlot,
+    setActiveSlot,
+    busy,
+    toast,
+    strategyKey,
+    activeStrategyName,
+    activeStrategyClass,
+    changeStrategy,
+    saveSlot,
+    loadSlot,
+    deleteSlot,
+    refreshSlots,
+
+    // Compatibilidad con controles rápidos existentes
     handleQuickSave,
     handleLoadStateBrowser,
     handleDownloadSave,
     handleUploadState,
-    savingRef
+    savingRef,
   };
 }
