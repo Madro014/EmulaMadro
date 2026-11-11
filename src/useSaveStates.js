@@ -39,6 +39,9 @@ export function useSaveStates({
   const activeStrategyClass = activeStrategyObj.constructor.name;
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.emulaSaveContext = contextRef.current;
+    }
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
