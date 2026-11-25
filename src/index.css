@@ -499,7 +499,8 @@ body {
   overflow: hidden;
 }
 
-.emu-wrapper canvas {
+.emu-wrapper canvas,
+.emu-wrapper video {
   width: 100% !important;
   height: 100% !important;
   object-fit: fill !important;
@@ -652,7 +653,8 @@ body {
   border-radius: 0;
 }
 
-.emulator-container:fullscreen .emu-wrapper canvas {
+.emulator-container:fullscreen .emu-wrapper canvas,
+.emulator-container:fullscreen .emu-wrapper video {
   object-fit: contain !important;
 }
 

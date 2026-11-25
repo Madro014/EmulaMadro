@@ -138,6 +138,9 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
         if (!data) return;
         if (data.type === 'input' && onGuestInputReceivedRef.current) {
           onGuestInputReceivedRef.current(data.action, data.isPressed);
+        } else if (data.type === 'request_stream') {
+          console.log('[Host] Invitado solicitó reenvío de stream.');
+          broadcastStream();
         } else if (data.type === 'ping') {
           conn.send({ type: 'pong', t: data.t });
         } else if (data.type === 'pong') {
@@ -190,16 +193,24 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
       return;
     }
     const canvas = emuWrapperRef.current?.querySelector('canvas');
-    if (canvas) {
-      try {
-        console.log('[Host] Transmitiendo video a 60fps...');
-        const stream = canvas.captureStream(60);
-        if (mediaConnectionRef.current) mediaConnectionRef.current.close();
-        const mediaCall = peerRef.current.call(connectionRef.current.peer, stream);
-        mediaConnectionRef.current = mediaCall;
-      } catch (e) {
-        console.error("[Host] Error capturando stream del canvas:", e);
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      console.warn('[Host] Canvas aún sin dimensiones, reintentando envío de stream...');
+      setTimeout(() => broadcastStream(), 500);
+      return;
+    }
+    try {
+      console.log(`[Host] Transmitiendo video (${canvas.width}x${canvas.height}) a 30fps...`);
+      const stream = canvas.captureStream(30);
+      if (mediaConnectionRef.current) mediaConnectionRef.current.close();
+      const mediaCall = peerRef.current.call(connectionRef.current.peer, stream);
+      mediaConnectionRef.current = mediaCall;
+      if (mediaCall?.peerConnection) {
+        mediaCall.peerConnection.addEventListener('iceconnectionstatechange', () => {
+          console.log('[Host] Media ICE state:', mediaCall.peerConnection?.iceConnectionState);
+        });
       }
+    } catch (e) {
+      console.error("[Host] Error capturando stream del canvas:", e);
     }
   };
 
@@ -247,6 +258,12 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
           text: `Conectado a la sala [${roomData.id}]. ¡A jugar!`,
           isSystem: true
         });
+        setTimeout(() => {
+          if (conn.open && !mediaConnectionRef.current) {
+            console.log('[Guest] Solicitando stream al Host...');
+            conn.send({ type: 'request_stream' });
+          }
+        }, 1800);
       });
 
       conn.on('data', (data) => {
@@ -282,7 +299,8 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
       mediaConnectionRef.current = call;
       call.answer(); // Contestar sin stream de retorno
       call.on('stream', (stream) => {
-        console.log('[Guest] Stream de video recibido.');
+        const tracks = stream.getVideoTracks().map((t) => `${t.label}:${t.readyState}`);
+        console.log('[Guest] Stream de video recibido.', tracks);
         setRemoteStream(stream);
       });
     });
@@ -303,9 +321,20 @@ export function useMultiplayer({ emuWrapperRef, onGuestInputReceived }) {
 
   const disconnect = async () => {
     stopPingMonitoring();
-    if (connectionRef.current) connectionRef.current.close();
-    if (mediaConnectionRef.current) mediaConnectionRef.current.close();
-    if (peer) peer.destroy();
+    if (connectionRef.current) {
+      connectionRef.current.close();
+      connectionRef.current = null;
+    }
+    if (mediaConnectionRef.current) {
+      mediaConnectionRef.current.close();
+      mediaConnectionRef.current = null;
+    }
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    } else if (peer) {
+      peer.destroy();
+    }
     
     // Si somos el host, borramos la sala de Supabase
     if (multiplayerState.mode === 'host' && multiplayerState.roomId) {

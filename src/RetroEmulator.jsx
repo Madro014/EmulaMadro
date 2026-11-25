@@ -56,6 +56,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const fileInputRef = useRef(null);
   const listeningActionRef = useRef(null);
   const videoRef = useRef(null);
+  const [videoNeedsClick, setVideoNeedsClick] = useState(false);
 
   const onGuestInputReceived = useCallback((action, isPressed) => {
     if (!nostalgistRef.current) {
@@ -253,8 +254,21 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   }, [multiplayerState.mode, sendGuestInput]);
 
   useEffect(() => {
-    if (videoRef.current && remoteStream) {
-      videoRef.current.srcObject = remoteStream;
+    const videoEl = videoRef.current;
+    if (!videoEl || !remoteStream) return;
+
+    videoEl.srcObject = remoteStream;
+    videoEl.muted = true; // Requerido por políticas de autoplay en Chrome/Brave
+    const playPromise = videoEl.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setVideoNeedsClick(false);
+        })
+        .catch((err) => {
+          console.warn('[Guest] Autoplay bloqueado, esperando clic del usuario:', err.message);
+          setVideoNeedsClick(true);
+        });
     }
   }, [remoteStream]);
 
@@ -372,6 +386,21 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         emuWrapperRef.current.innerHTML = '';
 
         const canvas = document.createElement('canvas');
+        // Mantener el buffer WebGL preservado para que captureStream() no transmita frames negros al Guest
+        const origGetContext = canvas.getContext.bind(canvas);
+        canvas.getContext = (contextType, contextAttributes = {}) => {
+          if (
+            contextType === 'webgl' ||
+            contextType === 'webgl2' ||
+            contextType === 'experimental-webgl'
+          ) {
+            return origGetContext(contextType, {
+              ...contextAttributes,
+              preserveDrawingBuffer: true,
+            });
+          }
+          return origGetContext(contextType, contextAttributes);
+        };
         emuWrapperRef.current.appendChild(canvas);
 
         // Load SRAM via backend (cloud first, local fallback, keys sanitized)
@@ -648,15 +677,51 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         {multiplayerState.mode === 'guest' && (
           <div className="emu-wrapper" style={{ background: 'black' }}>
             {remoteStream ? (
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted={false}
-                controls={false}
-                onCanPlay={(e) => e.target.play().catch(console.error)}
-                style={{ width: '100%', height: '100%', objectFit: 'fill' }}
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  controls={false}
+                  onLoadedMetadata={(e) => {
+                    e.target.play().then(() => setVideoNeedsClick(false)).catch(() => setVideoNeedsClick(true));
+                  }}
+                  onCanPlay={(e) => {
+                    e.target.play().then(() => setVideoNeedsClick(false)).catch(() => setVideoNeedsClick(true));
+                  }}
+                  onPlaying={() => setVideoNeedsClick(false)}
+                  style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
+                />
+                {videoNeedsClick && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.muted = true;
+                        videoRef.current.play().then(() => setVideoNeedsClick(false)).catch(console.error);
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      margin: 'auto',
+                      width: 'fit-content',
+                      height: 'fit-content',
+                      padding: '0.75rem 1.25rem',
+                      background: 'rgba(37, 99, 235, 0.92)',
+                      color: 'white',
+                      border: '1px solid rgba(147, 197, 253, 0.6)',
+                      borderRadius: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      zIndex: 15,
+                    }}
+                  >
+                    Clic aquí para reproducir video
+                  </button>
+                )}
+              </>
             ) : (
               <div style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', zIndex: 10 }}>
                 <Loader2 className="spin" size={40} />
