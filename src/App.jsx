@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Gamepad2, Upload, Cloud, Play, ImagePlus, Loader2, Trash2 } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Gamepad2, Upload, Cloud, Play, Loader2, Trash2 } from 'lucide-react'
 import RetroEmulator from './RetroEmulator'
 import { supabase } from './supabaseClient'
 import './index.css'
@@ -7,12 +7,22 @@ import './index.css'
 import { MorphIcon } from "morphicons/react";
 import { Image as ImageIcon, Upload as UploadIcon } from "lucide";
 
-function RomCard({ rom, getCoverUrl, failedImages, setFailedImages, handleCoverUpload, playCloudRom, detectCore, handleDeleteCloudRom, downloadingRom }) {
+function RomCard({ rom, getCoverCandidates, handleCoverUpload, playCloudRom, detectCore, handleDeleteCloudRom, downloadingRom }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [candidateIndex, setCandidateIndex] = useState(0);
   const isDownloading = downloadingRom === rom.name;
-  const coverUrl = getCoverUrl(rom.name);
-  const hasFailed = failedImages.has(rom.name);
+
+  const candidates = useMemo(() => getCoverCandidates(rom.name), [rom.name, getCoverCandidates]);
+  const currentCoverUrl = candidates[candidateIndex] || null;
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [candidates]);
+
+  const handleImageError = () => {
+    setCandidateIndex(prev => prev + 1);
+  };
 
   const onDelete = async (e) => {
     e.stopPropagation();
@@ -45,12 +55,13 @@ function RomCard({ rom, getCoverUrl, failedImages, setFailedImages, handleCoverU
         }}
       />
       <div className="rom-card-icon" style={{ position: 'relative', pointerEvents: 'none' }}>
-        {coverUrl && !hasFailed ? (
+        {currentCoverUrl ? (
           <img 
-            src={coverUrl} 
+            src={currentCoverUrl} 
             alt={rom.name} 
             className="rom-cover-img" 
-            onError={() => setFailedImages(prev => new Set(prev).add(rom.name))}
+            onError={handleImageError}
+            loading="lazy"
           />
         ) : (
           <Gamepad2 size={48} />
@@ -136,13 +147,23 @@ const getSystemName = (ext) => {
   return null
 }
 
+const getGithubRepoName = (ext) => {
+  if (ext === 'nes') return 'Nintendo_-_Nintendo_Entertainment_System'
+  if (ext === 'smc' || ext === 'sfc') return 'Nintendo_-_Super_Nintendo_Entertainment_System'
+  if (ext === 'gba') return 'Nintendo_-_Game_Boy_Advance'
+  if (ext === 'gb') return 'Nintendo_-_Game_Boy'
+  if (ext === 'gbc') return 'Nintendo_-_Game_Boy_Color'
+  if (ext === 'gen' || ext === 'md') return 'Sega_-_Mega_Drive_-_Genesis'
+  if (ext === 'zip') return 'SNK_-_Neo_Geo'
+  return null
+}
+
 function App() {
   const [romFile, setRomFile] = useState(null)
   const [fileName, setFileName] = useState('')
   const [core, setCore] = useState('')
   const [cloudRoms, setCloudRoms] = useState([])
   const [cloudCovers, setCloudCovers] = useState([])
-  const [failedImages, setFailedImages] = useState(new Set())
   const [loadingRoms, setLoadingRoms] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(null)
   const [downloadingRom, setDownloadingRom] = useState(null)
@@ -324,7 +345,6 @@ function App() {
       alert("Subiendo carátula...");
       const { error } = await supabase.storage.from('emulamadro').upload(`covers/${baseName}.${ext}`, file, { upsert: true });
       if (error) throw error;
-      setFailedImages(prev => { const n = new Set(prev); n.delete(romName); return n; });
       fetchCloudRoms();
     } catch (err) {
       console.error("Error subiendo cover:", err);
@@ -334,24 +354,46 @@ function App() {
     }
   }
 
-  const getCoverUrl = (romName) => {
+  const getCoverCandidates = useCallback((romName) => {
+    if (!romName) return [];
     const baseName = romName.replace(/\.[^/.]+$/, "");
     const ext = romName.split('.').pop().toLowerCase();
-    
-    // 1. Custom Cover in Supabase
+    const list = [];
+
+    // 1. Carátula personalizada en Supabase Storage
     const customCover = cloudCovers.find(c => c.name.toLowerCase().startsWith(baseName.toLowerCase() + '.'));
     if (customCover) {
-      return supabase.storage.from('emulamadro').getPublicUrl(`covers/${customCover.name}`).data.publicUrl;
+      list.push(supabase.storage.from('emulamadro').getPublicUrl(`covers/${customCover.name}`).data.publicUrl);
     }
 
-    // 2. Libretro Automagic
+    // 2. Repositorios oficiales de Libretro Thumbnails vía jsDelivr CDN y GitHub Raw
+    const repo = getGithubRepoName(ext);
+    if (repo) {
+      const namesToTry = [baseName];
+      // Si el título contiene tags entre paréntesis (hacks, variantes regionales), intentar alternativas limpias
+      if (baseName.includes('(')) {
+        const cleanTitle = baseName.replace(/\s*\([^)]*\)/g, '').trim();
+        if (cleanTitle && cleanTitle !== baseName) {
+          namesToTry.push(`${cleanTitle} (USA)`);
+          namesToTry.push(`${cleanTitle} (World)`);
+          namesToTry.push(cleanTitle);
+        }
+      }
+
+      for (const name of namesToTry) {
+        list.push(`https://cdn.jsdelivr.net/gh/libretro-thumbnails/${repo}/Named_Boxarts/${encodeURIComponent(name)}.png`);
+        list.push(`https://raw.githubusercontent.com/libretro-thumbnails/${repo}/master/Named_Boxarts/${encodeURIComponent(name)}.png`);
+      }
+    }
+
+    // 3. Dominio tradicional libretro como respaldo final
     const system = getSystemName(ext);
     if (system) {
-      return `https://thumbnails.libretro.com/${encodeURIComponent(system)}/Named_Boxarts/${encodeURIComponent(baseName)}.png`;
+      list.push(`https://thumbnails.libretro.com/${encodeURIComponent(system)}/Named_Boxarts/${encodeURIComponent(baseName)}.png`);
     }
-    
-    return null;
-  }
+
+    return list;
+  }, [cloudCovers]);
 
   const playCloudRom = async (romOrName) => {
     const romObj = typeof romOrName === 'string' ? cloudRoms.find(r => r.name === romOrName) : romOrName;
@@ -445,11 +487,6 @@ function App() {
       if (customCover) {
         setCloudCovers(prev => prev.filter(c => c.name !== customCover.name));
       }
-      setFailedImages(prev => {
-        const next = new Set(prev);
-        next.delete(romName);
-        return next;
-      });
     } catch (err) {
       console.error("Error eliminando ROM:", err);
       alert("Ocurrió un error inesperado al eliminar el juego.");
@@ -501,9 +538,7 @@ function App() {
                       <RomCard
                         key={rom.id || rom.name}
                         rom={rom}
-                        getCoverUrl={getCoverUrl}
-                        failedImages={failedImages}
-                        setFailedImages={setFailedImages}
+                        getCoverCandidates={getCoverCandidates}
                         handleCoverUpload={handleCoverUpload}
                         playCloudRom={playCloudRom}
                         detectCore={detectCore}
