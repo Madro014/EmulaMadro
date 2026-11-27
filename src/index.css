@@ -463,7 +463,7 @@ body {
   position: relative;
   display: block;
   margin: 0 auto;
-  width: 1024px;
+  width: min(1024px, 95vw, 94vh);
   max-width: 95vw;
   aspect-ratio: 1 / 1;
   background: transparent;
@@ -672,6 +672,7 @@ body {
   gap: 1rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 3000;
+  pointer-events: none;
   animation: slideIn 0.3s ease-out;
 }
 
@@ -2111,6 +2112,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   z-index: 3500;
+  pointer-events: none;
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -2152,6 +2154,286 @@ body {
   }
   .slot-row-buttons {
     justify-content: flex-end;
+  }
+}
+
+/* =========================================================
+   MODO CONSOLA: NAVEGACIÓN ESPACIAL COMPLETA CON MANDO
+   ========================================================= */
+
+/* Resaltado global de foco del mando en botones, tarjetas y modales */
+.console-focused {
+  outline: 3px solid #38bdf8 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.28), 0 10px 26px rgba(15, 23, 42, 0.55) !important;
+  transition: transform 0.16s ease, box-shadow 0.16s ease !important;
+}
+
+button.console-focused,
+label.console-focused {
+  transform: translateY(-2px) scale(1.03);
+}
+
+/* Cuando el foco está dentro de una tarjeta de juego (.rom-card) */
+.rom-card:has(.rom-card-hitbox.console-focused) {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45), 0 16px 36px rgba(37, 99, 235, 0.4) !important;
+  transform: translateY(-6px) scale(1.035);
+  z-index: 4;
+}
+
+.rom-card:has(.rom-card-hitbox.console-focused) .rom-card-hitbox.console-focused {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rom-card:has(.rom-card-hitbox.console-focused) .play-overlay {
+  opacity: 0.88;
+}
+
+/* Barra HUD inferior de controles de Consola */
+.console-hud-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  margin: 0 auto 1rem;
+  width: min(960px, calc(100% - 2rem));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 1.15rem;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 9999px;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  z-index: 40;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.console-hud-bar.active {
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.28);
+}
+
+.console-hud-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.console-hud-bar.active .console-hud-left {
+  color: #7dd3fc;
+}
+
+.console-hud-hints {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.console-hud-hints strong {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 5px;
+  padding: 0.08rem 0.4rem;
+  margin-right: 0.25rem;
+  font-size: 0.74rem;
+}
+
+/* Selector táctil/gamepad de 3 pilares para Strategy en Slots */
+.strategy-pills-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.strategy-option-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(30, 41, 59, 0.8);
+  color: #cbd5e1;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.strategy-option-btn:hover:not(:disabled) {
+  background: rgba(51, 65, 85, 0.95);
+  color: white;
+}
+
+.strategy-option-btn.local.selected {
+  background: rgba(59, 130, 246, 0.26);
+  border-color: #60a5fa;
+  color: #dbeafe;
+}
+
+.strategy-option-btn.cloud.selected {
+  background: rgba(16, 185, 129, 0.26);
+  border-color: #34d399;
+  color: #d1fae5;
+}
+
+.strategy-option-btn.file.selected {
+  background: rgba(168, 85, 247, 0.26);
+  border-color: #c084fc;
+  color: #f3e8ff;
+}
+
+.console-menu-trigger-btn {
+  background: rgba(56, 189, 248, 0.18) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  color: #bae6fd !important;
+  font-weight: 700;
+}
+
+/* Menú Consola In-Game Overlay */
+.console-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.82);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  z-index: 3200;
+  animation: fadeIn 0.18s ease-out;
+}
+
+.console-menu-panel {
+  width: min(640px, 100%);
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(37, 99, 235, 0.25);
+  overflow: hidden;
+}
+
+.console-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.1rem 1.35rem;
+  background: rgba(2, 6, 23, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.console-menu-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.console-menu-header span {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.console-shortcut-chip {
+  font-family: monospace;
+  font-size: 0.74rem !important;
+  color: #93c5fd !important;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  padding: 0.22rem 0.55rem;
+  border-radius: 6px;
+}
+
+.console-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 1.25rem 1.35rem;
+}
+
+.console-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(30, 41, 59, 0.78);
+  color: #f1f5f9;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.console-menu-item:hover:not(:disabled) {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.console-menu-item.primary {
+  background: rgba(37, 99, 235, 0.32);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.console-menu-item.danger {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(248, 113, 113, 0.38);
+  color: #fecaca;
+}
+
+.console-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.console-menu-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(2, 6, 23, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.console-menu-footer strong {
+  color: #fbbf24;
+  margin-right: 0.3rem;
+}
+
+.confirm-modal-card {
+  max-width: 440px !important;
+}
+
+@media (max-width: 640px) {
+  .strategy-pills-group,
+  .console-menu-grid {
+    grid-template-columns: 1fr;
+  }
+  .console-hud-bar {
+    border-radius: 14px;
+    justify-content: center;
+    text-align: center;
   }
 }
 

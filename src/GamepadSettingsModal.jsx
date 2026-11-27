@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { X, RotateCcw, Gamepad, Keyboard, Sparkles, Check, Info } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, RotateCcw, Gamepad, Sparkles, Check } from 'lucide-react';
 import { getGameProfile, formatKeyDisplay, DEFAULT_GAMEPAD } from './gameControlsProfiles';
+import ConfirmModal from './ConfirmModal';
 
 export default function GamepadSettingsModal({
   showSettings,
@@ -14,7 +15,6 @@ export default function GamepadSettingsModal({
   setMapping,
   activeDebugButtons,
   playerRole,
-  setPlayerRole,
   editingPlayerTab,
   setEditingPlayerTab,
   connectedGamepadCount,
@@ -22,11 +22,13 @@ export default function GamepadSettingsModal({
   romName,
   core
 }) {
-  if (!showSettings) return null;
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const gameProfile = useMemo(() => {
     return getGameProfile(romName || '', core || '');
   }, [romName, core]);
+
+  if (!showSettings) return null;
 
   const getP1Device = () => {
     if (connectedGamepadCount >= 2) return 'Mando Físico (Mando 0)';
@@ -45,20 +47,22 @@ export default function GamepadSettingsModal({
   const p2Device = getP2Device();
 
   const handleResetDefaults = () => {
-    if (!window.confirm(`¿Deseas restablecer los controles del Jugador ${editingPlayerTab} a los valores predeterminados?`)) {
-      return;
-    }
+    setConfirmReset(true);
+  };
+
+  const confirmResetDefaults = () => {
     if (setMapping) {
       setMapping(prev => {
         const next = { ...prev };
         next[editingPlayerTab] = { ...DEFAULT_GAMEPAD };
         try {
           localStorage.setItem('emulamadro_mapping', JSON.stringify(next));
-        } catch (e) {}
+        } catch {}
         return next;
       });
     }
     setListeningAction(null);
+    setConfirmReset(false);
   };
 
   return (
@@ -173,8 +177,10 @@ export default function GamepadSettingsModal({
             return (
               <div 
                 key={action} 
+                role="button"
+                tabIndex={0}
                 className={`action-mapping-card ${isListening ? 'listening' : ''}`}
-                onClick={() => setListeningAction(action)}
+                onClick={() => setListeningAction(isListening ? null : action)}
               >
                 {/* Lado izquierdo: Acción contextual real del juego */}
                 <div className="action-meta">
@@ -195,6 +201,8 @@ export default function GamepadSettingsModal({
                 {/* Lado derecho: Tecla o botón asignado actualmente */}
                 <div className="action-bind-wrapper">
                   <button 
+                    type="button"
+                    data-console-skip="true"
                     className={`key-badge-btn ${isListening ? 'active-listening' : keyInfo.isCustom ? 'custom' : 'default'}`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -221,7 +229,9 @@ export default function GamepadSettingsModal({
         {/* Footer del Modal */}
         <div style={{ marginTop: '1.4rem', textAlign: 'center' }}>
           <button 
+            type="button"
             className="role-btn active"
+            data-console-autofocus="true"
             style={{ padding: '0.85rem 2rem', width: '100%', fontSize: '1rem', fontWeight: 'bold' }}
             onClick={closeSettings}
           >
@@ -230,6 +240,17 @@ export default function GamepadSettingsModal({
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        show={confirmReset}
+        title="Restablecer Controles"
+        message={`¿Deseas restablecer los controles del Jugador ${editingPlayerTab} a los valores predeterminados?`}
+        confirmLabel="Restablecer"
+        cancelLabel="Cancelar"
+        danger
+        onConfirm={confirmResetDefaults}
+        onCancel={() => setConfirmReset(false)}
+      />
     </div>
   );
 }

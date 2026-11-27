@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Nostalgist } from 'nostalgist';
-import { Gamepad2, Maximize, Loader2, Settings, X, Save, Upload, HardDriveDownload, MessageSquare, Wifi, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { Gamepad2, Maximize, Loader2, Save, HardDriveDownload, MessageSquare, Wifi, CheckCircle2, AlertCircle, Info, Layers, Users, Play, ArrowLeft } from 'lucide-react';
 import { saveSram, loadSram } from '../backend/saveManager';
 import GamepadSettingsModal from './GamepadSettingsModal';
 import MultiplayerModal from './MultiplayerModal';
 import EmulatorToolbar from './EmulatorToolbar';
-import { useVirtualGamepad, KEY_MAP_P2 } from './useVirtualGamepad';
+import { useVirtualGamepad } from './useVirtualGamepad';
 import { useSaveStates } from './useSaveStates';
 import { useMultiplayer } from './useMultiplayer';
+import { useConsoleNavigation } from './useConsoleNavigation';
 
 const DEFAULT_MAPPING = {
   1: {
@@ -32,6 +33,7 @@ const getInitialMapping = () => {
 
 export default function RetroEmulator({ romFile, core, onStop }) {
   const containerRef = useRef(null);
+  const tvFrameRef = useRef(null);
   const emuWrapperRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const nostalgistRef = useRef(null);
@@ -39,6 +41,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [gamepadStatus, setGamepadStatus] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
+  const [showConsoleMenu, setShowConsoleMenu] = useState(false);
+  const [showSlots, setShowSlots] = useState(false);
   const [mapping, setMapping] = useState(getInitialMapping);
   const [listeningAction, setListeningAction] = useState(null);
   const [useJoystickAsDpad, setUseJoystickAsDpad] = useState(true);
@@ -57,6 +61,15 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const listeningActionRef = useRef(null);
   const videoRef = useRef(null);
   const [videoNeedsClick, setVideoNeedsClick] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (tvFrameRef.current) {
+        tvFrameRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [romFile]);
 
   const onGuestInputReceived = useCallback((action, isPressed) => {
     if (!nostalgistRef.current) {
@@ -321,8 +334,11 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     emuWrapperRef
   });
 
+  const isAnyUiOpen = showConsoleMenu || showSettings || showMultiplayerModal || showSlots;
+
   const { currentCoreActions, activeDebugButtons } = useVirtualGamepad({
     showSettings,
+    pauseGameInput: isAnyUiOpen,
     nostalgistRef,
     loading,
     mapping,
@@ -340,19 +356,76 @@ export default function RetroEmulator({ romFile, core, onStop }) {
     sendGuestInput
   });
 
+  // Navegación espacial con mando dentro de menús, slots y modales del emulador
+  useConsoleNavigation({
+    enabled: isAnyUiOpen && !listeningAction && !showChatInput,
+    focusTrigger: `${showConsoleMenu}-${showSettings}-${showMultiplayerModal}-${showSlots}-${slots.length}`,
+    onBack: () => {
+      if (showMultiplayerModal) {
+        setShowMultiplayerModal(false);
+      } else if (showSettings) {
+        setShowSettings(false);
+        setListeningAction(null);
+      } else if (showSlots) {
+        setShowSlots(false);
+      } else if (showConsoleMenu) {
+        setShowConsoleMenu(false);
+      }
+    },
+  });
+
+  // Atajo físico del mando para abrir/cerrar el Menú Consola en plena partida:
+  // Botón Home/Guide (16), o L3+R3 (10+11), o Select+L1+R1 (8+4+5)
+  useEffect(() => {
+    let rafId = null;
+    let wasComboActive = false;
+
+    const pollConsoleShortcut = () => {
+      rafId = requestAnimationFrame(pollConsoleShortcut);
+      if (listeningAction || showChatInput || showSettings || showMultiplayerModal) {
+        wasComboActive = false;
+        return;
+      }
+
+      const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+      let comboActive = false;
+      for (const gp of gps) {
+        if (!gp || !gp.connected) continue;
+        const homeBtn = gp.buttons[16]?.pressed;
+        const l3r3 = gp.buttons[10]?.pressed && gp.buttons[11]?.pressed;
+        const selectShoulder = gp.buttons[8]?.pressed && gp.buttons[4]?.pressed && gp.buttons[5]?.pressed;
+        if (homeBtn || l3r3 || selectShoulder) {
+          comboActive = true;
+          break;
+        }
+      }
+
+      if (comboActive && !wasComboActive) {
+        setShowConsoleMenu((prev) => !prev);
+      }
+      wasComboActive = comboActive;
+    };
+
+    rafId = requestAnimationFrame(pollConsoleShortcut);
+    return () => cancelAnimationFrame(rafId);
+  }, [listeningAction, showChatInput, showSettings, showMultiplayerModal]);
+
   useEffect(() => {
     listeningActionRef.current = listeningAction;
   }, [listeningAction]);
 
   useEffect(() => {
     if (nostalgistRef.current) {
-      if (multiplayerState.mode === 'guest') {
+      if (multiplayerState.mode === 'guest' || isAnyUiOpen) {
         try { nostalgistRef.current.pause(); } catch (e) {}
       } else {
         try { nostalgistRef.current.resume(); } catch (e) {}
+        setTimeout(() => {
+          emuWrapperRef.current?.querySelector('canvas')?.focus();
+        }, 80);
       }
     }
-  }, [multiplayerState.mode]);
+  }, [multiplayerState.mode, isAnyUiOpen]);
 
   // Bloquear que el Host presione las teclas del Player 2 localmente
   useEffect(() => {
@@ -661,7 +734,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         </div>
       )}
 
-      <div className="tv-frame">
+      <div className="tv-frame" ref={tvFrameRef}>
         {loading && (
           <div className="loading-overlay">
             <Loader2 className="animate-spin" size={48} />
@@ -830,6 +903,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       <EmulatorToolbar 
         openSettings={() => setShowSettings(true)}
         openMultiplayer={() => setShowMultiplayerModal(true)}
+        openConsoleMenu={() => setShowConsoleMenu(true)}
         toggleFullscreen={toggleFullscreen}
         handleQuickSave={handleQuickSave}
         handleLoadStateBrowser={handleLoadStateBrowser}
@@ -839,6 +913,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         isMultiplayerConnected={multiplayerState.mode !== 'local'}
         toggleChat={() => setShowChatInput(prev => !prev)}
         isGuest={multiplayerState.mode === 'guest'}
+        showSlots={showSlots}
+        setShowSlots={setShowSlots}
         slots={slots}
         activeSlot={activeSlot}
         busy={busy}
@@ -854,6 +930,131 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       />
 
       <button className="stop-btn" onClick={onStop}>Cambiar Juego</button>
+
+      {showConsoleMenu && (
+        <div className="console-menu-overlay" role="dialog" aria-modal="true" aria-label="Menú Rápido de Consola">
+          <div className="console-menu-panel">
+            <div className="console-menu-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Gamepad2 size={24} color="#60a5fa" />
+                <div>
+                  <h3>Menú de Consola</h3>
+                  <span>Navega con tu mando • Partida pausada</span>
+                </div>
+              </div>
+              <span className="console-shortcut-chip">Home / L1+R1+Select</span>
+            </div>
+
+            <div className="console-menu-grid">
+              <button
+                type="button"
+                className="console-menu-item primary"
+                data-console-autofocus="true"
+                onClick={() => {
+                  setShowConsoleMenu(false);
+                  setTimeout(() => emuWrapperRef.current?.querySelector('canvas')?.focus(), 80);
+                }}
+              >
+                <Play size={20} />
+                <span>Reanudar Partida</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item"
+                disabled={busy || multiplayerState.mode === 'guest'}
+                onClick={async () => {
+                  await handleQuickSave();
+                  setShowConsoleMenu(false);
+                }}
+              >
+                <Save size={20} />
+                <span>Guardar Rápido (Slot {activeSlot})</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item"
+                disabled={busy || multiplayerState.mode === 'guest'}
+                onClick={async () => {
+                  await handleLoadStateBrowser();
+                  setShowConsoleMenu(false);
+                }}
+              >
+                <HardDriveDownload size={20} />
+                <span>Cargar Slot {activeSlot}</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item"
+                onClick={() => {
+                  setShowConsoleMenu(false);
+                  refreshSlots();
+                  setShowSlots(true);
+                }}
+              >
+                <Layers size={20} />
+                <span>Slots y Estrategia ({activeStrategyName})</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item"
+                onClick={() => {
+                  setShowConsoleMenu(false);
+                  setShowSettings(true);
+                }}
+              >
+                <Gamepad2 size={20} />
+                <span>Mapeo de Controles</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item"
+                onClick={() => {
+                  setShowConsoleMenu(false);
+                  setShowMultiplayerModal(true);
+                }}
+              >
+                <Users size={20} />
+                <span>Multijugador Online</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item"
+                onClick={() => {
+                  toggleFullscreen();
+                  setShowConsoleMenu(false);
+                }}
+              >
+                <Maximize size={20} />
+                <span>Pantalla Completa</span>
+              </button>
+
+              <button
+                type="button"
+                className="console-menu-item danger"
+                onClick={() => {
+                  setShowConsoleMenu(false);
+                  onStop();
+                }}
+              >
+                <ArrowLeft size={20} />
+                <span>Volver al Catálogo</span>
+              </button>
+            </div>
+
+            <div className="console-menu-footer">
+              <span><strong>D-Pad / Stick</strong> Mover</span>
+              <span><strong>A / Enter</strong> Elegir</span>
+              <span><strong>B / Esc</strong> Reanudar</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <GamepadSettingsModal 
         showSettings={showSettings}
@@ -881,7 +1082,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         onClose={() => setShowMultiplayerModal(false)}
         onCreateRoom={async (data) => {
           await hostRoom(data);
-          alert(`¡Sala ${data.name} creada exitosamente!\nEsperando jugadores...`);
+          setGamepadStatus(`Sala ${data.id} creada — Esperando jugador...`);
+          setTimeout(() => setGamepadStatus(null), 4000);
         }}
         onJoinRoom={async (data) => {
           await joinRoom(data);

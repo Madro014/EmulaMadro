@@ -16,6 +16,7 @@ import {
   X,
   RefreshCw,
   Loader2,
+  Gamepad2,
 } from 'lucide-react';
 
 const SLOT_NUMBERS = [1, 2, 3];
@@ -58,6 +59,7 @@ function getStrategyBadgeMeta(strategyKey) {
 export default function EmulatorToolbar({
   openSettings,
   openMultiplayer,
+  openConsoleMenu,
   toggleFullscreen,
   handleQuickSave,
   handleLoadStateBrowser,
@@ -67,6 +69,9 @@ export default function EmulatorToolbar({
   isMultiplayerConnected,
   toggleChat,
   isGuest = false,
+  // Control externo opcional de Slots para Modo Consola
+  showSlots: controlledShowSlots,
+  setShowSlots: setControlledShowSlots,
   // Props del Patrón Strategy
   slots = [],
   activeSlot = 1,
@@ -81,17 +86,17 @@ export default function EmulatorToolbar({
   onDeleteSlot,
   onRefreshSlots,
 }) {
-  const [showSlots, setShowSlots] = useState(false);
+  const [internalShowSlots, setInternalShowSlots] = useState(false);
+  const showSlots = controlledShowSlots !== undefined ? controlledShowSlots : internalShowSlots;
+  const setShowSlots = setControlledShowSlots || setInternalShowSlots;
   const { shortLabel, Icon: StrategyIcon, colorClass } = getStrategyBadgeMeta(strategyKey);
 
   const toggleSlotsPanel = () => {
-    setShowSlots((prev) => {
-      const next = !prev;
-      if (next && onRefreshSlots) {
-        onRefreshSlots();
-      }
-      return next;
-    });
+    const next = !showSlots;
+    setShowSlots(next);
+    if (next && onRefreshSlots) {
+      onRefreshSlots();
+    }
   };
 
   return (
@@ -130,27 +135,40 @@ export default function EmulatorToolbar({
             </div>
           </div>
 
-          {/* Selector de Estrategia de Guardado (Demostración Patrón Strategy) */}
+          {/* Selector de Estrategia de Guardado (Demostración Patrón Strategy + compatible con Mando) */}
           <div className="strategy-selector-box">
             <div className="strategy-selector-top">
-              <label htmlFor="save-strategy-select" className="strategy-selector-label">
+              <span className="strategy-selector-label">
                 Motor de Guardado (Patrón Strategy)
-              </label>
+              </span>
               <span className="strategy-context-chip" title="Delegación activa en tiempo de ejecución">
                 SaveManagerContext ➔ {activeStrategyClass}
               </span>
             </div>
-            <select
-              id="save-strategy-select"
-              value={strategyKey}
-              onChange={(e) => onChangeStrategy?.(e.target.value)}
-              disabled={busy}
-              className="strategy-select-input"
-            >
-              <option value="local">Local (IndexedDB)</option>
-              <option value="cloud">Nube (Supabase Cloud)</option>
-              <option value="file">Archivo Físico (.state)</option>
-            </select>
+            <div className="strategy-pills-group" role="radiogroup" aria-label="Motor de Guardado (Patrón Strategy)">
+              {[
+                { key: 'local', label: 'Local (IndexedDB)', Icon: Database },
+                { key: 'cloud', label: 'Nube (Supabase)', Icon: Cloud },
+                { key: 'file', label: 'Archivo (.state)', Icon: FileDown },
+              ].map(({ key, label, Icon }) => {
+                const selected = strategyKey === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    data-console-autofocus={selected ? 'true' : undefined}
+                    className={`strategy-option-btn ${key} ${selected ? 'selected' : ''}`}
+                    onClick={() => onChangeStrategy?.(key)}
+                    disabled={busy}
+                  >
+                    <Icon size={15} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {isGuest && (
@@ -264,6 +282,16 @@ export default function EmulatorToolbar({
       )}
 
       <div className="controls-hint" style={{ flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
+        {openConsoleMenu && (
+          <button
+            type="button"
+            className="settings-btn console-menu-trigger-btn"
+            onClick={openConsoleMenu}
+            title="Abrir Menú Consola con el mando (Botón Home o Select + L1 + R1)"
+          >
+            <Gamepad2 size={18} /> Menú Consola
+          </button>
+        )}
         <button className="settings-btn" onClick={openSettings}>
           <Settings size={18} /> Mapeo
         </button>

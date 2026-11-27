@@ -53,7 +53,8 @@ export function useVirtualGamepad({
   playerRole,
   editingPlayerTab,
   multiplayerMode,
-  sendGuestInput
+  sendGuestInput,
+  pauseGameInput = false
 }) {
   const mappingReqRef = useRef(null);
   const virtualGamepadReqRef = useRef(null);
@@ -211,7 +212,26 @@ export function useVirtualGamepad({
 
   // Virtual Gamepad Translator Loop (Runs when game is active)
   useEffect(() => {
-    if (showSettings) return;
+    if (showSettings || pauseGameInput) {
+      // Liberar botones retenidos al pausar o abrir menús del Modo Consola
+      [1, 2].forEach((pNum) => {
+        const held = buttonStates.current[pNum];
+        if (!held) return;
+        Object.keys(held).forEach((action) => {
+          if (held[action]) {
+            held[action] = false;
+            if (multiplayerMode === 'guest' && sendGuestInput) {
+              sendGuestInput(action, false);
+            } else if (multiplayerMode !== 'guest' && nostalgistRef.current) {
+              try {
+                nostalgistRef.current.pressUp({ button: action.toLowerCase(), player: pNum });
+              } catch {}
+            }
+          }
+        });
+      });
+      return;
+    }
     if (multiplayerMode !== 'guest' && (!nostalgistRef.current || loading)) return;
 
     const activeActions = CORE_BUTTONS[core] || CORE_BUTTONS.fceumm;
@@ -354,7 +374,7 @@ export function useVirtualGamepad({
     
     virtualGamepadReqRef.current = requestAnimationFrame(pollVirtualGamepad);
     return () => cancelAnimationFrame(virtualGamepadReqRef.current);
-  }, [showSettings, loading, mapping, core, useJoystickAsDpad, nostalgistRef, emuWrapperRef, playerRole, multiplayerMode, sendGuestInput]);
+  }, [showSettings, pauseGameInput, loading, mapping, core, useJoystickAsDpad, nostalgistRef, emuWrapperRef, playerRole, multiplayerMode, sendGuestInput]);
 
   return { 
     currentCoreActions: CORE_BUTTONS[core] || CORE_BUTTONS.fceumm,

@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Gamepad2, Upload, Cloud, Play, Loader2, Trash2 } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Gamepad2, Upload, Cloud, Play, Loader2, Trash2, CheckCircle2, AlertCircle, Info } from 'lucide-react'
 import RetroEmulator from './RetroEmulator'
 import { supabase } from './supabaseClient'
+import { useConsoleNavigation } from './useConsoleNavigation'
+import ConfirmModal from './ConfirmModal'
 import './index.css'
 
 import { MorphIcon } from "morphicons/react";
 import { Image as ImageIcon, Upload as UploadIcon } from "lucide";
 
-function RomCard({ rom, getCoverCandidates, handleCoverUpload, playCloudRom, detectCore, handleDeleteCloudRom, downloadingRom }) {
+function RomCard({ rom, index, getCoverCandidates, handleCoverUpload, playCloudRom, detectCore, handleDeleteCloudRom, downloadingRom }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [candidateIndex, setCandidateIndex] = useState(0);
@@ -45,6 +47,8 @@ function RomCard({ rom, getCoverCandidates, handleCoverUpload, playCloudRom, det
     >
       <button 
         className="rom-card-hitbox"
+        data-rom-name={rom.name}
+        data-console-autofocus={index === 0 ? 'true' : undefined}
         onClick={() => !isDownloading && playCloudRom(rom)}
         aria-label={`Jugar ${formatGameTitle(rom.name)}`}
         disabled={isDownloading}
@@ -81,9 +85,10 @@ function RomCard({ rom, getCoverCandidates, handleCoverUpload, playCloudRom, det
       {/* Botón para eliminar ROM de la nube */}
       <button
         className="delete-rom-btn"
+        data-console-skip="true"
         onClick={onDelete}
         disabled={isDeleting || isDownloading}
-        title="Eliminar juego de la nube"
+        title="Eliminar juego de la nube (Mando: Y)"
         aria-label={`Eliminar ${rom.name} de la nube`}
         style={{ zIndex: 3 }}
       >
@@ -93,8 +98,9 @@ function RomCard({ rom, getCoverCandidates, handleCoverUpload, playCloudRom, det
       {/* Botón para cambiar carátula */}
       <label 
         className="edit-cover-btn" 
+        data-console-skip="true"
         onClick={e => e.stopPropagation()} 
-        title="Cambiar carátula"
+        title="Cambiar carátula (Mando: X)"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{ zIndex: 3 }}
@@ -167,6 +173,29 @@ function App() {
   const [loadingRoms, setLoadingRoms] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(null)
   const [downloadingRom, setDownloadingRom] = useState(null)
+  const [confirmDeleteRom, setConfirmDeleteRom] = useState(null)
+  const [appToast, setAppToast] = useState(null)
+  const appToastTimerRef = useRef(null)
+
+  const showAppToast = useCallback((msg, type = 'info') => {
+    if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
+    setAppToast({ msg, type });
+    appToastTimerRef.current = setTimeout(() => setAppToast(null), 3500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
+    };
+  }, []);
+
+  const toggleAppFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  }, []);
 
   const isSupabaseConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'PON_TU_URL_AQUI'
 
@@ -330,7 +359,7 @@ function App() {
     if (failedCount > 0) summary.push(`❌ ${failedCount} juego(s) fallaron al subirse.`);
 
     if (summary.length > 0) {
-      alert(summary.join('\n'));
+      showAppToast(summary.join(' | '), failedCount > 0 ? 'err' : 'ok');
     }
   }
 
@@ -342,13 +371,14 @@ function App() {
     const ext = file.name.split('.').pop().toLowerCase();
     
     try {
-      alert("Subiendo carátula...");
+      showAppToast('Subiendo carátula...', 'info');
       const { error } = await supabase.storage.from('emulamadro').upload(`covers/${baseName}.${ext}`, file, { upsert: true });
       if (error) throw error;
-      fetchCloudRoms();
+      await fetchCloudRoms();
+      showAppToast(`Carátula actualizada para ${formatGameTitle(romName)}`, 'ok');
     } catch (err) {
       console.error("Error subiendo cover:", err);
-      alert("Error al subir la carátula.");
+      showAppToast("Error al subir la carátula.", 'err');
     } finally {
       event.target.value = '';
     }
@@ -434,12 +464,8 @@ function App() {
     setRomFile({ name: romName, url: data.publicUrl, isCloud: true });
   }
 
-  const handleDeleteCloudRom = async (romName) => {
-    const displayName = formatGameTitle(romName);
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar "${displayName}" de tu biblioteca en la nube?\n\nEsta acción eliminará el archivo y no volverá a aparecer.`)) {
-      return;
-    }
-
+  const executeDeleteCloudRom = async (romName) => {
+    if (!romName) return;
     try {
       const baseName = romName.replace(/\.[^/.]+$/, "");
       const customCover = cloudCovers.find(c => c.name.toLowerCase().startsWith(baseName.toLowerCase() + '.'));
@@ -487,14 +513,65 @@ function App() {
       if (customCover) {
         setCloudCovers(prev => prev.filter(c => c.name !== customCover.name));
       }
+      showAppToast(`"${formatGameTitle(romName)}" eliminado de la nube.`, 'ok');
     } catch (err) {
       console.error("Error eliminando ROM:", err);
-      alert("Ocurrió un error inesperado al eliminar el juego.");
+      showAppToast("Ocurrió un error inesperado al eliminar el juego.", 'err');
     }
   };
 
+  const handleDeleteCloudRom = (romName) => {
+    setConfirmDeleteRom(romName);
+  };
+
+  // Navegación espacial completa estilo Consola en pantalla principal (se activa sola con mando y se oculta con mouse/táctil)
+  const { consoleActive, focusFirst } = useConsoleNavigation({
+    enabled: !romFile,
+    focusTrigger: `${cloudRoms.length}-${loadingRoms}-${Boolean(confirmDeleteRom)}`,
+    onBack: () => {
+      if (confirmDeleteRom) {
+        setConfirmDeleteRom(null);
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+    },
+    onStart: (focusedEl) => {
+      if (focusedEl && focusedEl.getAttribute('data-rom-name')) {
+        focusedEl.click();
+      } else {
+        focusFirst(true);
+      }
+    },
+    onX: (focusedEl) => {
+      const card = focusedEl?.closest?.('.rom-card');
+      const input = card?.querySelector?.('.edit-cover-btn input[type="file"]');
+      if (input) input.click();
+    },
+    onY: (focusedEl) => {
+      const targetRom = focusedEl?.getAttribute?.('data-rom-name');
+      if (targetRom) {
+        setConfirmDeleteRom(targetRom);
+      }
+    },
+    onPrevTab: toggleAppFullscreen,
+    onNextTab: toggleAppFullscreen,
+  });
+
   return (
-    <div className="app-container">
+    <div className={`app-container ${consoleActive ? 'console-mode-active' : ''}`}>
+      {appToast && (
+        <div className={`strategy-toast ${appToast.type || 'info'}`} role="status" aria-live="polite">
+          {appToast.type === 'err' ? (
+            <AlertCircle size={18} />
+          ) : appToast.type === 'ok' ? (
+            <CheckCircle2 size={18} />
+          ) : (
+            <Info size={18} />
+          )}
+          <span>{appToast.msg}</span>
+        </div>
+      )}
+
       <header className="header">
         <img src="/logo.webp" alt="EmulaMadro Logo" className="header-logo" />
       </header>
@@ -507,6 +584,7 @@ function App() {
                 <div className="library-header">
                   <h2><Cloud size={24} style={{ display: 'inline', marginRight: '10px' }} /> Tu Biblioteca en la Nube</h2>
                   <label 
+                    tabIndex={0}
                     className="upload-cloud-btn"
                     style={uploadProgress ? { opacity: 0.85, pointerEvents: 'none', cursor: 'wait' } : {}}
                   >
@@ -534,10 +612,11 @@ function App() {
                   {loadingRoms ? (
                     <p className="loading-text">Cargando biblioteca...</p>
                   ) : cloudRoms.length > 0 ? (
-                    cloudRoms.map((rom) => (
+                    cloudRoms.map((rom, idx) => (
                       <RomCard
                         key={rom.id || rom.name}
                         rom={rom}
+                        index={idx}
                         getCoverCandidates={getCoverCandidates}
                         handleCoverUpload={handleCoverUpload}
                         playCloudRom={playCloudRom}
@@ -560,7 +639,7 @@ function App() {
             <div className="local-play-section">
               <h3>Jugar archivo local (Sin guardar en la nube)</h3>
               <p>Arrastra tu juego o búscalo en tu PC</p>
-              <label className="upload-btn">
+              <label tabIndex={0} className="upload-btn">
                 Explorar Archivos Locales
                 <input type="file" accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md,.zip" onChange={handleLocalPlay} />
               </label>
@@ -569,10 +648,48 @@ function App() {
         ) : (
           <div className="game-wrapper">
             <h2 className="game-title">Jugando: {fileName}</h2>
-            <RetroEmulator romFile={romFile} core={core} onStop={() => setRomFile(null)} />
+            <RetroEmulator
+              romFile={romFile}
+              core={core}
+              onStop={() => {
+                setRomFile(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </div>
         )}
       </main>
+
+      {!romFile && consoleActive && (
+        <div className="console-hud-bar active" role="status">
+          <div className="console-hud-left">
+            <Gamepad2 size={16} />
+            <span>Modo Mando Activo</span>
+          </div>
+          <div className="console-hud-hints">
+            <span><strong>D-Pad / Stick</strong> Mover</span>
+            <span><strong>A / Enter</strong> Jugar o Elegir</span>
+            <span><strong>X</strong> Carátula</span>
+            <span><strong>Y</strong> Eliminar</span>
+            <span><strong>L1 / R1</strong> Pantalla Completa</span>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        show={Boolean(confirmDeleteRom)}
+        title="Eliminar Juego de la Nube"
+        message={confirmDeleteRom ? `¿Estás seguro de que deseas eliminar "${formatGameTitle(confirmDeleteRom)}" de tu biblioteca en la nube?\n\nEsta acción eliminará el archivo y no volverá a aparecer.` : ''}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        danger
+        onConfirm={() => {
+          const target = confirmDeleteRom;
+          setConfirmDeleteRom(null);
+          executeDeleteCloudRom(target);
+        }}
+        onCancel={() => setConfirmDeleteRom(null)}
+      />
 
       {downloadingRom && (
         <div style={{

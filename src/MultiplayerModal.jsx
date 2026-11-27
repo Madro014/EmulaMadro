@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, RefreshCw, Users, Check, Globe, ShieldCheck, Trash2 } from 'lucide-react';
+import { X, Copy, RefreshCw, Users, Check, ShieldCheck, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import ConfirmModal from './ConfirmModal';
 
 export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRoom }) {
   const [activeTab, setActiveTab] = useState('ingresar');
+  const [confirmState, setConfirmState] = useState(null);
+  const [modalError, setModalError] = useState('');
   
   // Crear Sala State
   const [createRoomName, setCreateRoomName] = useState('');
@@ -77,42 +80,58 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
     onClose();
   };
 
-  const handleDeleteRoom = async (roomId, e) => {
+  const handleDeleteRoom = (roomId, e) => {
     if (e) e.stopPropagation();
-    if (!confirm(`¿Estás seguro de que deseas eliminar la sala [${roomId}]?`)) return;
-
-    try {
-      await supabase.from('rooms').delete().eq('id', roomId);
-      const updated = myRooms.filter(id => id !== roomId);
-      localStorage.setItem('my_created_rooms', JSON.stringify(updated));
-      setMyRooms(updated);
-      if (joinRoomId === roomId) setJoinRoomId('');
-      refreshRooms();
-    } catch (err) {
-      console.error('Error eliminando sala:', err);
-      alert('Error al eliminar la sala.');
-    }
+    setConfirmState({
+      title: 'Eliminar Sala',
+      message: `¿Estás seguro de que deseas eliminar la sala [${roomId}]?`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await supabase.from('rooms').delete().eq('id', roomId);
+          const updated = myRooms.filter(id => id !== roomId);
+          localStorage.setItem('my_created_rooms', JSON.stringify(updated));
+          setMyRooms(updated);
+          if (joinRoomId === roomId) setJoinRoomId('');
+          refreshRooms();
+        } catch (err) {
+          console.error('Error eliminando sala:', err);
+          setModalError('Error al eliminar la sala.');
+        }
+      },
+    });
   };
 
-  const handleResetAllRooms = async () => {
-    if (!confirm('¿Deseas resetear y limpiar todas las salas inactivas de la base de datos?')) return;
-    try {
-      await supabase.from('rooms').delete().neq('id', 'dummy_keep');
-      localStorage.removeItem('my_created_rooms');
-      setMyRooms([]);
-      setJoinRoomId('');
-      refreshRooms();
-    } catch (err) {
-      console.error('Error reseteando salas:', err);
-    }
+  const handleResetAllRooms = () => {
+    setConfirmState({
+      title: 'Resetear Salas',
+      message: '¿Deseas resetear y limpiar todas las salas inactivas de la base de datos?',
+      confirmLabel: 'Resetear Todo',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await supabase.from('rooms').delete().neq('id', 'dummy_keep');
+          localStorage.removeItem('my_created_rooms');
+          setMyRooms([]);
+          setJoinRoomId('');
+          refreshRooms();
+        } catch (err) {
+          console.error('Error reseteando salas:', err);
+        }
+      },
+    });
   };
 
   const handleJoinRoom = () => {
     const code = joinRoomId.trim().toUpperCase();
     if (!code) {
-      alert('Por favor, ingresa el código de la sala.');
+      setModalError('Por favor, selecciona una sala activa o ingresa el código.');
       return;
     }
+    setModalError('');
     onJoinRoom({
       id: code,
       password: joinPassword
@@ -170,18 +189,35 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
 
         <div className="tab-container" style={{ margin: '1rem 0' }}>
           <button 
+            type="button"
+            data-console-autofocus="true"
             className={`tab-btn ${activeTab === 'ingresar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ingresar')}
+            onClick={() => { setModalError(''); setActiveTab('ingresar'); }}
           >
             Unirse con Código
           </button>
           <button 
+            type="button"
             className={`tab-btn ${activeTab === 'crear' ? 'active' : ''}`}
-            onClick={() => setActiveTab('crear')}
+            onClick={() => { setModalError(''); setActiveTab('crear'); }}
           >
             Crear Sala (Host)
           </button>
         </div>
+
+        {modalError && (
+          <div style={{
+            background: 'rgba(220, 38, 38, 0.18)',
+            border: '1px solid rgba(248, 113, 113, 0.45)',
+            color: '#fecaca',
+            padding: '0.55rem 0.85rem',
+            borderRadius: '8px',
+            fontSize: '0.82rem',
+            marginBottom: '0.9rem',
+          }}>
+            {modalError}
+          </div>
+        )}
 
         {activeTab === 'crear' && (
           <div className="settings-section">
@@ -334,8 +370,10 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
                     return (
                       <div 
                         key={room.id} 
+                        role="button"
+                        tabIndex={0}
                         className="room-card" 
-                        onClick={() => setJoinRoomId(room.id)}
+                        onClick={() => { setModalError(''); setJoinRoomId(room.id); }}
                         style={{ border: joinRoomId === room.id ? '1px solid #3b82f6' : undefined }}
                       >
                         <div className="room-info">
@@ -347,6 +385,7 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {room.has_password && <span className="room-lock" title="Requiere contraseña">🔒</span>}
                           <button 
+                            type="button"
                             className="delete-room-card-btn"
                             title={isCreator ? "Eliminar esta sala (eres el creador)" : "Eliminar esta sala de la nube"}
                             onClick={(e) => handleDeleteRoom(room.id, e)}
@@ -363,6 +402,16 @@ export default function MultiplayerModal({ show, onClose, onJoinRoom, onCreateRo
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        show={Boolean(confirmState)}
+        title={confirmState?.title}
+        message={confirmState?.message}
+        confirmLabel={confirmState?.confirmLabel}
+        danger={confirmState?.danger}
+        onConfirm={() => confirmState?.onConfirm?.()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
