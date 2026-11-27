@@ -9,29 +9,28 @@ import { useVirtualGamepad } from './useVirtualGamepad';
 import { useSaveStates } from './useSaveStates';
 import { useMultiplayer } from './useMultiplayer';
 import { useConsoleNavigation } from './useConsoleNavigation';
+import { getDefaultMappingForGame, getMappingStorageKey } from './gameControlsProfiles';
 
-const DEFAULT_MAPPING = {
-  1: {
-    UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
-    B: 0, A: 1, Y: 2, X: 3, L: 4, R: 5,
-    SELECT: 8, START: 9
-  },
-  2: {
-    UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
-    B: 0, A: 1, Y: 2, X: 3, L: 4, R: 5,
-    SELECT: 8, START: 9
-  }
-};
-
-const getInitialMapping = () => {
+const loadMappingForGame = (romName = '', core = '') => {
+  const defaults = getDefaultMappingForGame(romName, core);
   try {
-    const saved = localStorage.getItem('emulamadro_mapping');
-    if (saved) return JSON.parse(saved);
+    const saved = localStorage.getItem(getMappingStorageKey(romName));
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && (parsed[1] || parsed[2])) {
+        return {
+          1: { ...defaults[1], ...(parsed[1] || {}) },
+          2: { ...defaults[2], ...(parsed[2] || {}) }
+        };
+      }
+    }
   } catch (e) {}
-  return DEFAULT_MAPPING;
+  return defaults;
 };
 
 export default function RetroEmulator({ romFile, core, onStop }) {
+  const romName = typeof romFile === 'string' ? romFile : (romFile?.name || '');
+  const currentStorageKey = getMappingStorageKey(romName);
   const containerRef = useRef(null);
   const tvFrameRef = useRef(null);
   const emuWrapperRef = useRef(null);
@@ -43,7 +42,10 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
   const [showConsoleMenu, setShowConsoleMenu] = useState(false);
   const [showSlots, setShowSlots] = useState(false);
-  const [mapping, setMapping] = useState(getInitialMapping);
+  const [mappingState, setMappingState] = useState(() => ({
+    key: currentStorageKey,
+    data: loadMappingForGame(romName, core)
+  }));
   const [listeningAction, setListeningAction] = useState(null);
   const [useJoystickAsDpad, setUseJoystickAsDpad] = useState(true);
   const [playerRole, setPlayerRole] = useState(1); // 1 or 2
@@ -52,10 +54,25 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const [playMode, setPlayMode] = useState('local'); // 'local' or 'online'
 
   useEffect(() => {
-    try {
-      localStorage.setItem('emulamadro_mapping', JSON.stringify(mapping));
-    } catch (e) {}
-  }, [mapping]);
+    setMappingState({
+      key: currentStorageKey,
+      data: loadMappingForGame(romName, core)
+    });
+  }, [currentStorageKey, romName, core]);
+
+  const setMapping = useCallback((updater) => {
+    setMappingState((prev) => {
+      const nextData = typeof updater === 'function' ? updater(prev.data) : updater;
+      try {
+        localStorage.setItem(prev.key, JSON.stringify(nextData));
+      } catch (e) {}
+      return { key: prev.key, data: nextData };
+    });
+  }, []);
+
+  const mapping = mappingState.key === currentStorageKey
+    ? mappingState.data
+    : loadMappingForGame(romName, core);
   
   const fileInputRef = useRef(null);
   const listeningActionRef = useRef(null);
@@ -498,6 +515,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
           retroarchConfig: {
             pause_nonactive: false,
             input_autodetect_enable: "false", // Disable native gamepad to avoid double inputs
+            input_joypad_driver: "null",
             
             // Controller types: 1 = Standard RETRO_DEVICE_JOYPAD
             input_libretro_device_p1: "1",

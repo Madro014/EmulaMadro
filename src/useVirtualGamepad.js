@@ -119,6 +119,20 @@ export function useVirtualGamepad({
   // Poll for mapping when modal is open (Gamepad)
   useEffect(() => {
     if (showSettings) {
+      // Seed currently pressed gamepad buttons/axes when settings opens so held inputs don't trigger accidental remaps
+      const initialGps = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (const gp of initialGps) {
+        if (!gp) continue;
+        prevGpButtonsRef.current[gp.index] = gp.buttons.map(b => !!(b.pressed || b.value > 0.5));
+        prevGpAxesRef.current[gp.index] = [];
+        if (gp.axes) {
+          for (let i = 0; i < gp.axes.length; i++) {
+            prevGpAxesRef.current[gp.index][i * 2] = gp.axes[i] < -0.5;
+            prevGpAxesRef.current[gp.index][i * 2 + 1] = gp.axes[i] > 0.5;
+          }
+        }
+      }
+
       const pollForMapping = () => {
         mappingReqRef.current = requestAnimationFrame(pollForMapping);
         
@@ -163,6 +177,7 @@ export function useVirtualGamepad({
               const axisVal = gp.axes[i];
               
               const isNegPressed = axisVal < -0.5;
+              if (isNegPressed) currentlyPressed.push(`A${i}-`);
               const wasNegPressed = prevAxes[i * 2] || false;
               if (isNegPressed && !wasNegPressed && listeningActionRef.current && !mappedThisFrame) {
                 setMapping(prev => ({
@@ -314,18 +329,11 @@ export function useVirtualGamepad({
           }
 
           if (useJoystickAsDpad && gamepad && gamepad.axes && gamepad.axes.length >= 2) {
-            const threshold = 0.5;
+            const threshold = 0.45;
             if (action === 'UP' && gamepad.axes[1] < -threshold) isPressed = true;
             if (action === 'DOWN' && gamepad.axes[1] > threshold) isPressed = true;
             if (action === 'LEFT' && gamepad.axes[0] < -threshold) isPressed = true;
-            if (typeof mappedBtnId === 'number' && gamepad && gamepad.buttons[mappedBtnId]) {
-              isPressed = gamepad.buttons[mappedBtnId].pressed;
-            } else if (typeof mappedBtnId === 'string' && mappedBtnId.startsWith('a') && gamepad) {
-              const axisId = parseInt(mappedBtnId.replace('a', ''), 10);
-              const isPos = mappedBtnId.endsWith('+');
-              const val = gamepad.axes[axisId];
-              isPressed = isPos ? val > 0.5 : val < -0.5;
-            }
+            if (action === 'RIGHT' && gamepad.axes[0] > threshold) isPressed = true;
           }
 
           if (!buttonStates.current[playerNum]) {
@@ -342,8 +350,9 @@ export function useVirtualGamepad({
                 try {
                   nostalgistRef.current.pressDown({ button: action.toLowerCase(), player: playerNum });
                 } catch (e) {}
+              } else {
+                sendKey(keyMap[action], 'keydown');
               }
-              sendKey(keyMap[action], 'keydown');
             }
           } else if (!isPressed && wasPressed) {
             buttonStates.current[playerNum][action] = false;
@@ -354,8 +363,9 @@ export function useVirtualGamepad({
                 try {
                   nostalgistRef.current.pressUp({ button: action.toLowerCase(), player: playerNum });
                 } catch (e) {}
+              } else {
+                sendKey(keyMap[action], 'keyup');
               }
-              sendKey(keyMap[action], 'keyup');
             }
           }
         });

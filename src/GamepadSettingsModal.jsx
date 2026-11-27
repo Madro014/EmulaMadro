@@ -1,6 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { X, RotateCcw, Gamepad, Sparkles, Check } from 'lucide-react';
-import { getGameProfile, formatKeyDisplay, DEFAULT_GAMEPAD } from './gameControlsProfiles';
+import {
+  getGameProfile,
+  getDefaultGamepadForGame,
+  hasCustomMappingForPlayer,
+  formatKeyDisplay
+} from './gameControlsProfiles';
 import ConfirmModal from './ConfirmModal';
 
 export default function GamepadSettingsModal({
@@ -28,6 +33,12 @@ export default function GamepadSettingsModal({
     return getGameProfile(romName || '', core || '');
   }, [romName, core]);
 
+  const recommendedGamepad = useMemo(() => {
+    return getDefaultGamepadForGame(romName || '', core || '');
+  }, [romName, core]);
+
+  const isCustomized = hasCustomMappingForPlayer(mapping?.[editingPlayerTab], romName || '', core || '');
+
   if (!showSettings) return null;
 
   const getP1Device = () => {
@@ -54,10 +65,7 @@ export default function GamepadSettingsModal({
     if (setMapping) {
       setMapping(prev => {
         const next = { ...prev };
-        next[editingPlayerTab] = { ...DEFAULT_GAMEPAD };
-        try {
-          localStorage.setItem('emulamadro_mapping', JSON.stringify(next));
-        } catch {}
+        next[editingPlayerTab] = { ...recommendedGamepad };
         return next;
       });
     }
@@ -83,11 +91,13 @@ export default function GamepadSettingsModal({
             <span className="game-detected-badge">
               <Sparkles size={14} /> Juego Activo Detectado
             </span>
-            <span className="game-genre-badge">{gameProfile.genre}</span>
+            <span className="game-genre-badge">
+              {gameProfile.genre} • {isCustomized ? 'Personalizado' : 'Mapeo Auto'}
+            </span>
           </div>
           <h4 className="game-detected-title">{gameProfile.title}</h4>
           <p className="game-detected-desc">
-            Las acciones mostradas a continuación representan lo que hace cada botón específicamente en este juego. Haz clic sobre cualquier tecla para remapearla a tu gusto.
+            Controles optimizados automáticamente para este juego. Haz clic sobre cualquier acción y presiona un botón de tu mando o tecla para personalizar este título sin afectar a los demás.
           </p>
         </div>
 
@@ -172,7 +182,14 @@ export default function GamepadSettingsModal({
             };
 
             const isListening = listeningAction === action;
-            const keyInfo = formatKeyDisplay(action, editingPlayerTab, mapping, isListening, connectedGamepadCount);
+            const keyInfo = formatKeyDisplay(
+              action,
+              editingPlayerTab,
+              mapping,
+              isListening,
+              connectedGamepadCount,
+              recommendedGamepad
+            );
 
             return (
               <div 
@@ -208,7 +225,7 @@ export default function GamepadSettingsModal({
                       e.stopPropagation();
                       setListeningAction(isListening ? null : action);
                     }}
-                    title="Haz clic para cambiar esta tecla"
+                    title="Haz clic para cambiar este control"
                   >
                     {isListening ? (
                       <span className="listening-pulse">
@@ -217,6 +234,11 @@ export default function GamepadSettingsModal({
                     ) : (
                       <span className="key-display-text">
                         {keyInfo.text}
+                        {keyInfo.secondaryText && (
+                          <span style={{ display: 'block', fontSize: '0.7rem', opacity: 0.78, marginTop: '2px' }}>
+                            {keyInfo.secondaryText}
+                          </span>
+                        )}
                       </span>
                     )}
                   </button>
@@ -244,7 +266,7 @@ export default function GamepadSettingsModal({
       <ConfirmModal
         show={confirmReset}
         title="Restablecer Controles"
-        message={`¿Deseas restablecer los controles del Jugador ${editingPlayerTab} a los valores predeterminados?`}
+        message={`¿Deseas restablecer los controles del Jugador ${editingPlayerTab} al mapeo recomendado para este juego?`}
         confirmLabel="Restablecer"
         cancelLabel="Cancelar"
         danger

@@ -46,13 +46,304 @@ export const DEFAULT_GAMEPAD = {
   START: 9
 };
 
+// Mapeos ergonómicos precalculados según consola/género sobre controles estándar (Xbox/PlayStation)
+// SNES / Genesis: B=Cruz/A(0), A=Círculo/B(1), Y=Cuadrado/X(2), X=Triángulo/Y(3)
+export const GAMEPAD_PRESET_SNES = { ...DEFAULT_GAMEPAD };
+
+// NES / GBA Acción & Plataformas: A=Cruz/A(0) para Saltar/Confirmar, B=Cuadrado/X(2) para Correr/Atacar
+export const GAMEPAD_PRESET_NINTENDO_ACTION = {
+  UP: 12,
+  DOWN: 13,
+  LEFT: 14,
+  RIGHT: 15,
+  A: 0,
+  B: 2,
+  Y: 3,
+  X: 1,
+  L: 4,
+  R: 5,
+  SELECT: 8,
+  START: 9
+};
+
+// GBA RPG / Aventura: A=Cruz/A(0) para Confirmar, B=Círculo/B(1) para Cancelar/Correr
+export const GAMEPAD_PRESET_GBA_RPG = {
+  UP: 12,
+  DOWN: 13,
+  LEFT: 14,
+  RIGHT: 15,
+  A: 0,
+  B: 1,
+  Y: 2,
+  X: 3,
+  L: 4,
+  R: 5,
+  SELECT: 8,
+  START: 9
+};
+
+// Neo Geo Arcade (fbalpha2012_neogeo): B=Botón A/Disparar(Cuadrado 2), A=Botón B/Saltar(Cruz 0), Y=Botón C/Granada(Círculo 1), X=Botón D/Slug(Triángulo 3)
+export const GAMEPAD_PRESET_NEOGEO = {
+  UP: 12,
+  DOWN: 13,
+  LEFT: 14,
+  RIGHT: 15,
+  B: 2,
+  A: 0,
+  Y: 1,
+  X: 3,
+  L: 4,
+  R: 5,
+  SELECT: 8,
+  START: 9
+};
+
 // Base de datos de juegos con descripciones y acciones contextuales reales
 const GAME_PROFILES_DATABASE = [
+  // Kirby Super Star & Kirby Series (SNES / GBA)
+  {
+    pattern: /kirby/i,
+    title: 'Kirby Super Star',
+    genre: 'Plataformas & Habilidades',
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
+    actions: {
+      UP: { label: 'Entrar Puerta / Subir / Flotar', icon: '⬆️', desc: 'Entrar por puertas o elevarse al volar', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Agacharse / Tragar Enemigo', icon: '⬇️', desc: 'Copiar poder al tragar o deslizarse (Abajo + Salto)', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Caminar / Correr Izquierda', icon: '⬅️', desc: 'Doble toque rápido para correr', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Caminar / Correr Derecha', icon: '➡️', desc: 'Doble toque rápido para correr', hardware: 'D-Pad 🠊' },
+      B: { label: 'Saltar / Inflarse y Volar', icon: '🎈', desc: 'Salto o vuelo aéreo pulsando repetidamente', hardware: 'Botón B' },
+      Y: { label: 'Absorber / Usar Poder', icon: '⭐', desc: 'Succionar enemigos o atacar con tu habilidad actual', hardware: 'Botón Y' },
+      A: { label: 'Crear Ayudante / Confirmar', icon: '🤝', desc: 'Convertir tu habilidad en compañero CPU', hardware: 'Botón A' },
+      X: { label: 'Soltar Habilidad / Llamar Ayudante', icon: '💫', desc: 'Descartar poder actual o invocar compañero', hardware: 'Botón X' },
+      L: { label: 'Guardia / Escudo (Izq.)', icon: '🛡️', desc: 'Bloquear ataques y reducir daño recibido', hardware: 'Gatillo L' },
+      R: { label: 'Guardia / Escudo (Der.)', icon: '🛡️', desc: 'Bloquear ataques y reducir daño recibido', hardware: 'Gatillo R' },
+      START: { label: 'Pausar / Ver Lista de Movimientos', icon: '⏸️', desc: 'Pausar y consultar ataques del poder actual', hardware: 'Start' },
+      SELECT: { label: 'Descartar Habilidad', icon: '🔄', desc: 'Soltar poder de copia', hardware: 'Select' }
+    }
+  },
+
+  // Super Mario Advance (GBA)
+  {
+    pattern: /super\s*mario\s*advance|mario\s*advance/i,
+    title: 'Super Mario Advance',
+    genre: 'Plataformas Clásico (GBA)',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Subir Enredadera / Entrar Puerta', icon: '⬆️', desc: 'Trepar lianas o entrar en puertas y jarrones', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Agacharse / Cargar Súper Salto', icon: '⬇️', desc: 'Mantén pulsado para cargar salto alto brillante', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Caminar / Correr Izquierda', icon: '⬅️', desc: 'Moverse a la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Caminar / Correr Derecha', icon: '➡️', desc: 'Moverse a la derecha', hardware: 'D-Pad 🠊' },
+      A: { label: 'Saltar / Nadar', icon: '🦘', desc: 'Salto principal (Botón A del GBA)', hardware: 'Botón A (GBA)' },
+      B: { label: 'Correr / Arrancar y Lanzar', icon: '🥬', desc: 'Mantén para correr o recoge y arroja verduras/enemigos', hardware: 'Botón B (GBA)' },
+      L: { label: 'Acción Auxiliar Izquierda', icon: '◀️', desc: 'Control auxiliar GBA', hardware: 'Gatillo L' },
+      R: { label: 'Acción Auxiliar Derecha', icon: '▶️', desc: 'Control auxiliar GBA', hardware: 'Gatillo R' },
+      START: { label: 'Pausar Partida', icon: '⏸️', desc: 'Pausar juego', hardware: 'Start' },
+      SELECT: { label: 'Opciones / Seleccionar', icon: '⚙️', desc: 'Cambiar opciones en menú', hardware: 'Select' }
+    }
+  },
+
+  // Donkey Kong Country Series (SNES)
+  {
+    pattern: /donkey\s*kong/i,
+    title: 'Donkey Kong Country',
+    genre: 'Plataformas & Aventura',
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
+    actions: {
+      UP: { label: 'Mirar Arriba / Subir Cuerda', icon: '⬆️', desc: 'Trepar lianas o apuntar en barriles', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Agacharse / Bajar Cuerda', icon: '⬇️', desc: 'Descender lianas o esquivar', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Caminar / Correr Izquierda', icon: '⬅️', desc: 'Moverse hacia la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Caminar / Correr Derecha', icon: '➡️', desc: 'Moverse hacia la derecha', hardware: 'D-Pad 🠊' },
+      B: { label: 'Saltar / Disparar Barril', icon: '🦘', desc: 'Salto principal o lanzar desde barril cañón', hardware: 'Botón B' },
+      Y: { label: 'Correr / Rodar / Cargar Barril', icon: '🛢️', desc: 'Girar para atacar o mantener para sujetar barriles', hardware: 'Botón Y' },
+      A: { label: 'Cargar Compañero / Confirmar', icon: '🦍', desc: 'Subir a tu compañero a hombros (DKC2/3) o confirmar', hardware: 'Botón A' },
+      X: { label: 'Cambiar de Kong (Relevar)', icon: '🔄', desc: 'Alternar entre los dos protagonistas', hardware: 'Botón X' },
+      L: { label: 'Acción Auxiliar (L)', icon: '◀️', desc: 'Mover cámara o habilidad', hardware: 'Gatillo L' },
+      R: { label: 'Acción Auxiliar (R)', icon: '▶️', desc: 'Mover cámara o habilidad', hardware: 'Gatillo R' },
+      START: { label: 'Pausar Partida', icon: '⏸️', desc: 'Pausa', hardware: 'Start' },
+      SELECT: { label: 'Cambiar / Salir de Nivel', icon: '🗺️', desc: 'Cambiar Kong o salir de fase completada', hardware: 'Select' }
+    }
+  },
+
+  // Aladdin (SNES)
+  {
+    pattern: /aladdin/i,
+    title: 'Aladdin',
+    genre: 'Plataformas & Aventura',
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
+    actions: {
+      UP: { label: 'Mirar Arriba / Trepar', icon: '⬆️', desc: 'Subir sogas o mirar arriba', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Agacharse / Bajar', icon: '⬇️', desc: 'Esquivar proyectiles', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Caminar Izquierda', icon: '⬅️', desc: 'Moverse a la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Caminar Derecha', icon: '➡️', desc: 'Moverse a la derecha', hardware: 'D-Pad 🠊' },
+      B: { label: 'Saltar / Impulsarse en Enemigo', icon: '🦘', desc: 'Salto acrobático', hardware: 'Botón B' },
+      Y: { label: 'Lanzar Manzana / Esquivar', icon: '🍎', desc: 'Aturdir guardias con manzanas', hardware: 'Botón Y' },
+      X: { label: 'Planear con Tela / Colgarse', icon: '🧣', desc: 'Mantén en el aire para planear suave', hardware: 'Botón X' },
+      A: { label: 'Correr / Pisotón / Confirmar', icon: '⚡', desc: 'Sprint y acción secundaria', hardware: 'Botón A' },
+      L: { label: 'Mirar Izquierda / Cámara', icon: '👀', desc: 'Desplazar vista', hardware: 'Gatillo L' },
+      R: { label: 'Mirar Derecha / Cámara', icon: '👀', desc: 'Desplazar vista', hardware: 'Gatillo R' },
+      START: { label: 'Pausar', icon: '⏸️', desc: 'Pausa', hardware: 'Start' },
+      SELECT: { label: 'Opciones', icon: '⚙️', desc: 'Seleccionar', hardware: 'Select' }
+    }
+  },
+
+  // Final Fight (SNES)
+  {
+    pattern: /final\s*fight/i,
+    title: 'Final Fight',
+    genre: "Beat 'em Up / Pelea Callejera",
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
+    actions: {
+      UP: { label: 'Moverse al Fondo', icon: '⬆️', desc: 'Desplazarse arriba en la calle', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Moverse al Frente', icon: '⬇️', desc: 'Desplazarse abajo en la calle', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Caminar Izquierda', icon: '⬅️', desc: 'Avanzar o retroceder a la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Caminar Derecha', icon: '➡️', desc: 'Avanzar por Metro City', hardware: 'D-Pad 🠊' },
+      Y: { label: 'Golpear / Recoger Arma o Comida', icon: '👊', desc: 'Combo de puños o recoger objetos del suelo', hardware: 'Botón Y' },
+      B: { label: 'Saltar / Patada Voladora', icon: '🦘', desc: 'Salto + Y para patada aérea o rodillazo', hardware: 'Botón B' },
+      A: { label: 'Ataque Especial Giratorio', icon: '🌀', desc: 'Limpia enemigos rodeándote (consume un poco de vida)', hardware: 'Botón A' },
+      X: { label: 'Golpe Alternativo / Turbo', icon: '💥', desc: 'Ataque rápido adicional', hardware: 'Botón X' },
+      L: { label: 'Ataque Auxiliar (L)', icon: '🥊', desc: 'Atajo auxiliar', hardware: 'Gatillo L' },
+      R: { label: 'Ataque Auxiliar (R)', icon: '🥊', desc: 'Atajo auxiliar', hardware: 'Gatillo R' },
+      START: { label: 'Pausar Pelea', icon: '⏸️', desc: 'Pausa', hardware: 'Start' },
+      SELECT: { label: 'Opciones', icon: '⚙️', desc: 'Opciones', hardware: 'Select' }
+    }
+  },
+
+  // Top Gear (SNES)
+  {
+    pattern: /top\s*gear/i,
+    title: 'Top Gear',
+    genre: 'Carreras / Racing Arcade',
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
+    actions: {
+      UP: { label: 'Subir Marcha (Manual)', icon: '⬆️', desc: 'Cambiar a velocidad superior en modo manual', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Bajar Marcha (Manual)', icon: '⬇️', desc: 'Reducir velocidad en curvas cerradas', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Girar a la Izquierda', icon: '⬅️', desc: 'Tomar curva a la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Girar a la Derecha', icon: '➡️', desc: 'Tomar curva a la derecha', hardware: 'D-Pad 🠊' },
+      B: { label: 'Acelerar', icon: '🏎️', desc: 'Acelerador principal', hardware: 'Botón B' },
+      Y: { label: 'Frenar', icon: '🛑', desc: 'Frenar antes de curvas cerradas', hardware: 'Botón Y' },
+      A: { label: 'Activar Nitro / Turbo', icon: '🔥', desc: 'Impulso de velocidad limitada por carrera', hardware: 'Botón A' },
+      X: { label: 'Cambiar Marcha / Nitro Alt.', icon: '⚙️', desc: 'Acción secundaria de conducción', hardware: 'Botón X' },
+      L: { label: 'Reducir Marcha', icon: '◀️', desc: 'Bajar marcha en transmisión manual', hardware: 'Gatillo L' },
+      R: { label: 'Subir Marcha', icon: '▶️', desc: 'Subir marcha en transmisión manual', hardware: 'Gatillo R' },
+      START: { label: 'Pausar Carrera', icon: '⏸️', desc: 'Pausa', hardware: 'Start' },
+      SELECT: { label: 'Opciones', icon: '⚙️', desc: 'Seleccionar modo', hardware: 'Select' }
+    }
+  },
+
+  // Snow Brothers (NES)
+  {
+    pattern: /snow\s*bro/i,
+    title: 'Snow Brothers',
+    genre: 'Arcade Plataformas Co-op',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Mirar Arriba', icon: '⬆️', desc: 'Dirección arriba', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Agacharse / Bajar', icon: '⬇️', desc: 'Bajar plataforma', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Moverse a la Izquierda', icon: '⬅️', desc: 'Caminar o patear bola a la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Moverse a la Derecha', icon: '➡️', desc: 'Caminar o patear bola a la derecha', hardware: 'D-Pad 🠊' },
+      A: { label: 'Saltar', icon: '🦘', desc: 'Subir plataformas o saltar encima de bolas', hardware: 'Botón A' },
+      B: { label: 'Lanzar Nieve / Patear Bola', icon: '❄️', desc: 'Congelar enemigos y empujar bolas de nieve gigantes', hardware: 'Botón B' },
+      START: { label: 'Iniciar / Pausar', icon: '⏸️', desc: 'Start 1P/2P o pausa', hardware: 'Start' },
+      SELECT: { label: 'Elegir 1P o 2P', icon: '👥', desc: 'Seleccionar modo cooperativo', hardware: 'Select' }
+    }
+  },
+
+  // Adventure Island Series (NES)
+  {
+    pattern: /adventure\s*island/i,
+    title: 'Adventure Island',
+    genre: 'Plataformas & Aventura',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Montar / Mirar Arriba', icon: '⬆️', desc: 'Dirección vertical', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Agacharse / Desmontar Dino', icon: '⬇️', desc: 'Esquivar o bajar', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Frenar / Moverse Izquierda', icon: '⬅️', desc: 'Retroceder', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Avanzar a la Derecha', icon: '➡️', desc: 'Correr por la isla', hardware: 'D-Pad 🠊' },
+      A: { label: 'Saltar', icon: '🦘', desc: 'Saltar obstáculos y fosos', hardware: 'Botón A' },
+      B: { label: 'Correr / Lanzar Hacha de Piedra', icon: '🪓', desc: 'Acelerar y arrojar armas o ataques de dinosaurio', hardware: 'Botón B' },
+      START: { label: 'Pausar / Ver Dino-Inventario', icon: '⏸️', desc: 'Elegir dinosaurio o pausar', hardware: 'Start' },
+      SELECT: { label: 'Opciones', icon: '⚙️', desc: 'Seleccionar', hardware: 'Select' }
+    }
+  },
+
+  // Bomberman Series (NES / SNES)
+  {
+    pattern: /bomberman/i,
+    title: 'Bomberman',
+    genre: 'Arcade / Estrategia Explosiva',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Moverse Arriba', icon: '⬆️', desc: 'Recorrer pasillo arriba', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Moverse Abajo', icon: '⬇️', desc: 'Recorrer pasillo abajo', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Moverse Izquierda', icon: '⬅️', desc: 'Recorrer pasillo izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Moverse Derecha', icon: '➡️', desc: 'Recorrer pasillo derecha', hardware: 'D-Pad 🠊' },
+      A: { label: 'Colocar Bomba', icon: '💣', desc: 'Soltar bomba para romper bloques y enemigos', hardware: 'Botón A' },
+      B: { label: 'Detonar Bomba (Control Remoto)', icon: '💥', desc: 'Activar explosión si tienes el detonador', hardware: 'Botón B' },
+      START: { label: 'Pausar Partida', icon: '⏸️', desc: 'Pausa', hardware: 'Start' },
+      SELECT: { label: 'Modo 1P / Multijugador', icon: '👥', desc: 'Elegir modo de juego', hardware: 'Select' }
+    }
+  },
+
+  // Circus Charlie (NES)
+  {
+    pattern: /circus\s*charlie/i,
+    title: 'Circus Charlie',
+    genre: 'Arcade Clásico',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Arriba (Cuerda / Equilibrio)', icon: '⬆️', desc: 'Ajustar posición', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Abajo', icon: '⬇️', desc: 'Ajustar posición', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Retroceder', icon: '⬅️', desc: 'Frenar o ir atrás en el león/pelota', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Avanzar', icon: '➡️', desc: 'Correr hacia los aros y meta', hardware: 'D-Pad 🠊' },
+      A: { label: 'Saltar', icon: '🎪', desc: 'Saltar aros de fuego, monos y trampolines', hardware: 'Botón A' },
+      B: { label: 'Saltar / Acelerar', icon: '🔥', desc: 'Impulso secundario', hardware: 'Botón B' },
+      START: { label: 'Iniciar / Pausar Función', icon: '⏸️', desc: 'Comenzar acto de circo', hardware: 'Start' },
+      SELECT: { label: 'Elegir 1P / 2P', icon: '👥', desc: 'Alternar jugadores', hardware: 'Select' }
+    }
+  },
+
+  // Galaga (NES)
+  {
+    pattern: /galaga/i,
+    title: 'Galaga',
+    genre: 'Arcade / Shooter Espacial',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Arriba (Menú)', icon: '⬆️', desc: 'Navegar menú inicial', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Abajo (Menú)', icon: '⬇️', desc: 'Navegar menú inicial', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Mover Nave a la Izquierda', icon: '⬅️', desc: 'Esquivar disparos galácticos', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Mover Nave a la Derecha', icon: '➡️', desc: 'Alinear disparos', hardware: 'D-Pad 🠊' },
+      A: { label: 'Disparar Misiles', icon: '🚀', desc: 'Fuego rápido contra alienígenas', hardware: 'Botón A' },
+      B: { label: 'Disparo Alternativo', icon: '💥', desc: 'Disparo adicional', hardware: 'Botón B' },
+      START: { label: 'Iniciar / Pausar', icon: '⏸️', desc: 'Pausa', hardware: 'Start' },
+      SELECT: { label: 'Modo 1P / 2P', icon: '👥', desc: 'Seleccionar jugadores', hardware: 'Select' }
+    }
+  },
+
+  // Tetris (NES)
+  {
+    pattern: /tetris/i,
+    title: 'Tetris',
+    genre: 'Puzzle / Arcade',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
+    actions: {
+      UP: { label: 'Menú Arriba', icon: '⬆️', desc: 'Elegir modo/nivel', hardware: 'D-Pad 🠉' },
+      DOWN: { label: 'Caída Rápida (Soft Drop)', icon: '⬇️', desc: 'Acelerar bajada de la pieza', hardware: 'D-Pad 🠋' },
+      LEFT: { label: 'Mover Pieza a la Izquierda', icon: '⬅️', desc: 'Desplazar columna a la izquierda', hardware: 'D-Pad 🠈' },
+      RIGHT: { label: 'Mover Pieza a la Derecha', icon: '➡️', desc: 'Desplazar columna a la derecha', hardware: 'D-Pad 🠊' },
+      A: { label: 'Rotar a la Derecha (Horario)', icon: '↻', desc: 'Girar tetrominó en sentido horario', hardware: 'Botón A' },
+      B: { label: 'Rotar a la Izquierda (Antihorario)', icon: '↺', desc: 'Girar tetrominó en sentido antihorario', hardware: 'Botón B' },
+      START: { label: 'Iniciar / Pausar', icon: '⏸️', desc: 'Comenzar o pausar', hardware: 'Start' },
+      SELECT: { label: 'Ocultar Pieza Siguiente / Menú', icon: '🔄', desc: 'Alternar vista Next', hardware: 'Select' }
+    }
+  },
+
   // Super Mario World & All-Stars (SNES)
   {
     pattern: /mario\s*world|all-stars|mario\s*all\s*stars/i,
     title: 'Super Mario World / All-Stars',
     genre: 'Plataformas & Aventura',
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
     actions: {
       UP: { label: 'Mirar Arriba / Subir Redes', icon: '⬆️', desc: 'Trepar rejas o mirar arriba', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Agacharse / Entrar Tubería', icon: '⬇️', desc: 'Entrar a tuberías o esquivar', hardware: 'D-Pad 🠋' },
@@ -74,6 +365,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /super\s*mario\s*bros(?!\s*3)|mario\s*bros(?!\s*3)/i,
     title: 'Super Mario Bros.',
     genre: 'Plataformas Clásico',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
     actions: {
       UP: { label: 'Mirar Arriba / Trepar', icon: '⬆️', desc: 'Subir lianas trepadoras', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Agacharse / Entrar Tubería', icon: '⬇️', desc: 'Agacharse o descender a zonas secretas', hardware: 'D-Pad 🠋' },
@@ -91,6 +383,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /mario\s*bros\.?\s*3|mario\s*3/i,
     title: 'Super Mario Bros. 3',
     genre: 'Plataformas & Aventura',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
     actions: {
       UP: { label: 'Entrar Puerta / Trepar', icon: '⬆️', desc: 'Entrar por puertas o subir lianas', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Agacharse / Derrapar Pendiente', icon: '⬇️', desc: 'Agacharse o deslizarse colina abajo', hardware: 'D-Pad 🠋' },
@@ -108,6 +401,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /contra|super\s*c/i,
     title: 'Contra / Super C',
     genre: 'Run & Gun / Acción',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
     actions: {
       UP: { label: 'Apuntar Arriba', icon: '⬆️', desc: 'Disparar verticalmente', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Agacharse / Acostarse', icon: '⬇️', desc: 'Tirarse al suelo para esquivar balas', hardware: 'D-Pad 🠋' },
@@ -197,6 +491,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /metal\s*slug|mslug/i,
     title: 'Metal Slug 3',
     genre: 'Run & Gun / Neo Geo Arcade',
+    recommendedGamepad: GAMEPAD_PRESET_NEOGEO,
     actions: {
       UP: { label: 'Apuntar Hacia Arriba', icon: '⬆️', desc: 'Disparar verticalmente al cielo', hardware: 'Joystick 🠉' },
       DOWN: { label: 'Agacharse / Apuntar Abajo', icon: '⬇️', desc: 'Agacharse o apuntar cañón hacia abajo', hardware: 'Joystick 🠋' },
@@ -216,6 +511,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /turtles|tmnt|mutant\s*hero\s*turtles/i,
     title: 'TMNT IV: Turtles in Time',
     genre: "Beat 'em Up / Acción Ninja",
+    recommendedGamepad: GAMEPAD_PRESET_SNES,
     actions: {
       UP: { label: 'Moverse Arriba', icon: '⬆️', desc: 'Moverse en el plano', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Moverse Abajo', icon: '⬇️', desc: 'Moverse en el plano', hardware: 'D-Pad 🠋' },
@@ -237,6 +533,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /pokemon|pokémon/i,
     title: 'Pokémon',
     genre: 'RPG de Colección y Combate',
+    recommendedGamepad: GAMEPAD_PRESET_GBA_RPG,
     actions: {
       UP: { label: 'Caminar Arriba', icon: '⬆️', desc: 'Moverse al norte', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Caminar Abajo', icon: '⬇️', desc: 'Moverse al sur', hardware: 'D-Pad 🠋' },
@@ -277,6 +574,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /mega\s*man|rockman/i,
     title: 'Mega Man',
     genre: 'Acción y Disparos',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
     actions: {
       UP: { label: 'Subir Escalera', icon: '⬆️', desc: 'Trepar escaleras tubulares', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Bajar Escalera / Deslizarse', icon: '⬇️', desc: 'Descender o preparar slide', hardware: 'D-Pad 🠋' },
@@ -294,6 +592,7 @@ const GAME_PROFILES_DATABASE = [
     pattern: /castlevania/i,
     title: 'Castlevania',
     genre: 'Acción Gótica',
+    recommendedGamepad: GAMEPAD_PRESET_NINTENDO_ACTION,
     actions: {
       UP: { label: 'Subir Escaleras / Usar Sub-Arma', icon: '⬆️', desc: 'Mantén Arriba + Ataque para sub-arma', hardware: 'D-Pad 🠉' },
       DOWN: { label: 'Agacharse / Bajar Escaleras', icon: '⬇️', desc: 'Agacharse para esquivar murciélagos', hardware: 'D-Pad 🠋' },
@@ -593,6 +892,60 @@ function getGenericProfile(romName, core) {
   };
 }
 
+// Clave de almacenamiento independiente por juego para personalizar controles sin romper otros títulos
+export function getMappingStorageKey(romName = '') {
+  if (!romName) return 'emulamadro_mapping_v2_default';
+  const clean = String(romName)
+    .replace(/\.(nes|smc|sfc|gba|gb|gbc|gen|md|zip|sms|gg|pce|n64|z64|bin|cue|32x|ngp|ngc)$/i, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .toLowerCase();
+  return `emulamadro_mapping_v2_${clean || 'default'}`;
+}
+
+// Obtiene el mapeo recomendado de gamepad adaptado específicamente al juego y su consola
+export function getDefaultGamepadForGame(romName = '', core = '') {
+  const lowerRom = String(romName || '').toLowerCase();
+
+  for (const profile of GAME_PROFILES_DATABASE) {
+    if (profile.pattern.test(romName) && profile.recommendedGamepad) {
+      return { ...profile.recommendedGamepad };
+    }
+  }
+
+  if (core === 'fceumm') {
+    return { ...GAMEPAD_PRESET_NINTENDO_ACTION };
+  }
+
+  if (core === 'mgba') {
+    if (/pokemon|pokémon|golden\s*sun|fire\s*emblem|tactics|rpg|fantasy|zelda|anguna/i.test(lowerRom)) {
+      return { ...GAMEPAD_PRESET_GBA_RPG };
+    }
+    return { ...GAMEPAD_PRESET_NINTENDO_ACTION };
+  }
+
+  if (core === 'fbalpha2012_neogeo') {
+    return { ...GAMEPAD_PRESET_NEOGEO };
+  }
+
+  return { ...GAMEPAD_PRESET_SNES };
+}
+
+// Obtiene el objeto { 1: ..., 2: ... } por defecto para Jugador 1 y Jugador 2 según el juego
+export function getDefaultMappingForGame(romName = '', core = '') {
+  const recommended = getDefaultGamepadForGame(romName, core);
+  return {
+    1: { ...recommended },
+    2: { ...recommended }
+  };
+}
+
+// Indica si el usuario modificó el mapeo respecto al perfil automático recomendado de este juego
+export function hasCustomMappingForPlayer(playerMapping, romName = '', core = '') {
+  if (!playerMapping) return false;
+  const recommended = getDefaultGamepadForGame(romName, core);
+  return Object.keys(recommended).some((action) => playerMapping[action] !== recommended[action]);
+}
+
 // Obtener perfil completo para el juego actual
 export function getGameProfile(romName = '', core = '') {
   if (!romName) {
@@ -612,7 +965,7 @@ export function getGameProfile(romName = '', core = '') {
 }
 
 // Formateador visual premium para mostrar qué tecla o botón está actualmente asignado
-export function formatKeyDisplay(action, playerNum, mapping, isListening, connectedGamepadCount) {
+export function formatKeyDisplay(action, playerNum, mapping, isListening, connectedGamepadCount, defaultGamepadForGame = null) {
   if (isListening) {
     return {
       text: 'Presiona una tecla o botón...',
@@ -688,9 +1041,14 @@ export function formatKeyDisplay(action, playerNum, mapping, isListening, connec
 
   if (typeof currentVal === 'number') {
     const gpName = GAMEPAD_NAMES[currentVal] || `Botón ${currentVal}`;
+    const isCustomizedButton = Boolean(
+      defaultGamepadForGame &&
+      defaultGamepadForGame[action] !== undefined &&
+      currentVal !== defaultGamepadForGame[action]
+    );
     
-    // Si el usuario no tiene mando y está en teclado, mostrarle la tecla por defecto equivalente
-    if (!isGamepadActive) {
+    // Si el usuario no tiene mando y no personalizó este botón del mando, mostrarle la tecla por defecto equivalente junto al botón de mando
+    if (!isGamepadActive && !isCustomizedButton) {
       const defKeyMap = playerNum === 1 ? DEFAULT_KEYBOARD_P1 : DEFAULT_KEYBOARD_P2;
       const defKey = defKeyMap[action] || '';
       let readableKey = defKey.replace('Key', '').replace('Arrow', 'Flecha ');
@@ -711,6 +1069,7 @@ export function formatKeyDisplay(action, playerNum, mapping, isListening, connec
     return {
       text: `🎮 ${gpName}`,
       shortText: gpName,
+      isCustom: isCustomizedButton,
       type: 'gamepad'
     };
   }
