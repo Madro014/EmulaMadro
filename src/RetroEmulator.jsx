@@ -60,6 +60,8 @@ export default function RetroEmulator({ romFile, core, onStop }) {
   const fileInputRef = useRef(null);
   const listeningActionRef = useRef(null);
   const videoRef = useRef(null);
+  const onStopRef = useRef(onStop);
+  onStopRef.current = onStop;
   const [videoNeedsClick, setVideoNeedsClick] = useState(false);
 
   useEffect(() => {
@@ -582,8 +584,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
       } catch (err) {
         console.error("Error al cargar el emulador:", err);
         if (active) {
-          alert("Ocurrió un error al cargar el juego.");
-          onStop();
+          onStopRef.current?.();
         }
       } finally {
         if (active) setLoading(false);
@@ -644,7 +645,7 @@ export default function RetroEmulator({ romFile, core, onStop }) {
         nostalgistRef.current = null;
       }
     };
-  }, [romFile, core, onStop, savingRef]);
+  }, [romFile, core]);
 
   const openSettings = useCallback(() => {
     setShowSettings(true);

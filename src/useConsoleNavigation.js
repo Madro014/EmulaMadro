@@ -117,6 +117,8 @@ function findNextInDirection(currentEl, direction, elements) {
  */
 export function useConsoleNavigation({
   enabled = true,
+  suspendActions = false,
+  suspendWhenConsoleActive = false,
   scopeRef = null,
   enableKeyboard = true,
   onBack = null,
@@ -224,8 +226,10 @@ export function useConsoleNavigation({
     el.click();
   }, [scopeRef, focusFirst]);
 
-  // Detectar mandos conectados automáticamente al inicio y al conectar/desconectar
+  // Detectar mandos conectados automáticamente al inicio y al conectar/desconectar (solo cuando enabled = true)
   useEffect(() => {
+    if (!enabled) return;
+
     const refreshPads = (fromEvent = false) => {
       const gps = navigator.getGamepads ? navigator.getGamepads() : [];
       let connectedPad = null;
@@ -258,10 +262,12 @@ export function useConsoleNavigation({
       window.removeEventListener('gamepadconnected', onConnected);
       window.removeEventListener('gamepaddisconnected', onDisconnected);
     };
-  }, []);
+  }, [enabled]);
 
   // Ocultar automáticamente el Modo Consola si el usuario mueve el mouse o usa pantalla táctil
   useEffect(() => {
+    if (!enabled) return;
+
     const deactivateConsoleUi = () => {
       if (consoleActiveRef.current) {
         setConsoleActive(false);
@@ -272,6 +278,9 @@ export function useConsoleNavigation({
     };
 
     const handlePointerDown = (e) => {
+      if (e.pointerType !== 'touch' && e.target?.closest?.('.console-shell button, .console-shell [role="button"]')) {
+        return;
+      }
       deactivateConsoleUi();
       const clickedTarget = e.target?.closest?.(FOCUSABLE_SELECTOR);
       if (clickedTarget && isElementVisible(clickedTarget)) {
@@ -291,7 +300,7 @@ export function useConsoleNavigation({
           return;
         }
         const dist = Math.hypot(e.clientX - last.x, e.clientY - last.y);
-        if (dist > 8) {
+        if (dist > 14) {
           lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
           deactivateConsoleUi();
         }
@@ -311,7 +320,7 @@ export function useConsoleNavigation({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('touchstart', handleTouchStart, { capture: true });
     };
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) {
@@ -334,7 +343,7 @@ export function useConsoleNavigation({
 
   // Auto-focus first item únicamente cuando Modo Consola está activo
   useEffect(() => {
-    if (!enabled || !consoleActive) return;
+    if (!enabled || !consoleActive || suspendActions || suspendWhenConsoleActive) return;
     const timer = setTimeout(() => {
       const scope = getActiveScopeRoot(scopeRef);
       const elements = getFocusableElements(scope);
@@ -345,7 +354,7 @@ export function useConsoleNavigation({
       }
     }, 60);
     return () => clearTimeout(timer);
-  }, [enabled, consoleActive, focusTrigger, scopeRef, focusFirst]);
+  }, [enabled, consoleActive, suspendActions, suspendWhenConsoleActive, focusTrigger, scopeRef, focusFirst]);
 
   // Gamepad polling loop
   useEffect(() => {
@@ -388,9 +397,11 @@ export function useConsoleNavigation({
         );
         if (hasAnyInput) {
           setConsoleActive(true);
-          focusFirst(true);
+          if (!suspendActions && !suspendWhenConsoleActive) focusFirst(true);
         }
       }
+
+      if (suspendActions || (suspendWhenConsoleActive && consoleActiveRef.current)) return;
 
       // Seed currently pressed buttons on first frame after activation so held buttons don't double-fire
       if (needsSeedRef.current) {
@@ -476,11 +487,11 @@ export function useConsoleNavigation({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [enabled, moveFocus, activateFocused, focusFirst, scopeRef]);
+  }, [enabled, suspendActions, suspendWhenConsoleActive, moveFocus, activateFocused, focusFirst, scopeRef]);
 
   // Optional Keyboard Arrow/Enter/Escape navigation parity
   useEffect(() => {
-    if (!enabled || !enableKeyboard) return;
+    if (!enabled || !enableKeyboard || suspendActions || (suspendWhenConsoleActive && consoleActive)) return;
 
     const handleKeyDown = (e) => {
       const tag = e.target?.tagName;
@@ -530,7 +541,7 @@ export function useConsoleNavigation({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, enableKeyboard, consoleActive, moveFocus, activateFocused]);
+  }, [enabled, enableKeyboard, suspendActions, suspendWhenConsoleActive, consoleActive, moveFocus, activateFocused]);
 
   return {
     hasGamepad,

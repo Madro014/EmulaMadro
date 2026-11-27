@@ -4,6 +4,7 @@ import RetroEmulator from './RetroEmulator'
 import { supabase } from './supabaseClient'
 import { useConsoleNavigation } from './useConsoleNavigation'
 import ConfirmModal from './ConfirmModal'
+import ConsoleLibrary from './ConsoleLibrary'
 import './index.css'
 
 import { MorphIcon } from "morphicons/react";
@@ -175,6 +176,7 @@ function App() {
   const [downloadingRom, setDownloadingRom] = useState(null)
   const [confirmDeleteRom, setConfirmDeleteRom] = useState(null)
   const [appToast, setAppToast] = useState(null)
+  const [hasSeenPressStart, setHasSeenPressStart] = useState(false)
   const appToastTimerRef = useRef(null)
 
   const showAppToast = useCallback((msg, type = 'info') => {
@@ -186,6 +188,32 @@ function App() {
   useEffect(() => {
     return () => {
       if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
+    };
+  }, []);
+
+  // Ocultar cursor del mouse tras 2 segundos sin movimiento y mostrarlo al moverlo
+  useEffect(() => {
+    let idleTimer = null;
+
+    const showCursor = () => {
+      document.documentElement.classList.remove('cursor-hidden');
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        document.documentElement.classList.add('cursor-hidden');
+      }, 2000);
+    };
+
+    showCursor();
+    window.addEventListener('pointermove', showCursor, { passive: true });
+    window.addEventListener('pointerdown', showCursor, { passive: true });
+    window.addEventListener('wheel', showCursor, { passive: true });
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      document.documentElement.classList.remove('cursor-hidden');
+      window.removeEventListener('pointermove', showCursor);
+      window.removeEventListener('pointerdown', showCursor);
+      window.removeEventListener('wheel', showCursor);
     };
   }, []);
 
@@ -524,9 +552,15 @@ function App() {
     setConfirmDeleteRom(romName);
   };
 
-  // Navegación espacial completa estilo Consola en pantalla principal (se activa sola con mando y se oculta con mouse/táctil)
+  const handleStopGame = useCallback(() => {
+    setRomFile(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Detección automática de Modo Mando (cuando está activo y sin modal de confirmación, ConsoleLibrary toma el control del carrusel)
   const { consoleActive, focusFirst } = useConsoleNavigation({
     enabled: !romFile,
+    suspendWhenConsoleActive: !confirmDeleteRom,
     focusTrigger: `${cloudRoms.length}-${loadingRoms}-${Boolean(confirmDeleteRom)}`,
     onBack: () => {
       if (confirmDeleteRom) {
@@ -542,20 +576,11 @@ function App() {
         focusFirst(true);
       }
     },
-    onX: (focusedEl) => {
-      const card = focusedEl?.closest?.('.rom-card');
-      const input = card?.querySelector?.('.edit-cover-btn input[type="file"]');
-      if (input) input.click();
-    },
-    onY: (focusedEl) => {
-      const targetRom = focusedEl?.getAttribute?.('data-rom-name');
-      if (targetRom) {
-        setConfirmDeleteRom(targetRom);
-      }
-    },
     onPrevTab: toggleAppFullscreen,
     onNextTab: toggleAppFullscreen,
   });
+
+  const isConsoleLibraryView = !romFile && consoleActive;
 
   return (
     <div className={`app-container ${consoleActive ? 'console-mode-active' : ''}`}>
@@ -572,108 +597,111 @@ function App() {
         </div>
       )}
 
-      <header className="header">
-        <img src="/logo.webp" alt="EmulaMadro Logo" className="header-logo" />
-      </header>
+      {!isConsoleLibraryView && (
+        <header className="header">
+          <img src="/logo.webp" alt="EmulaMadro Logo" className="header-logo" />
+        </header>
+      )}
 
-      <main className="main-content">
-        {!romFile ? (
-          <div className="library-container">
-            {isSupabaseConfigured ? (
-              <>
-                <div className="library-header">
-                  <h2><Cloud size={24} style={{ display: 'inline', marginRight: '10px' }} /> Tu Biblioteca en la Nube</h2>
-                  <label 
-                    tabIndex={0}
-                    className="upload-cloud-btn"
-                    style={uploadProgress ? { opacity: 0.85, pointerEvents: 'none', cursor: 'wait' } : {}}
-                  >
-                    {uploadProgress ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />
-                        Subiendo ({uploadProgress.current}/{uploadProgress.total})...
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={18} /> Subir Juegos a la Nube
-                      </>
-                    )}
-                    <input 
-                      type="file" 
-                      multiple 
-                      accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md,.zip" 
-                      onChange={handleCloudUpload} 
-                      disabled={!!uploadProgress}
-                    />
-                  </label>
-                </div>
-
-                <div className="rom-grid">
-                  {loadingRoms ? (
-                    <p className="loading-text">Cargando biblioteca...</p>
-                  ) : cloudRoms.length > 0 ? (
-                    cloudRoms.map((rom, idx) => (
-                      <RomCard
-                        key={rom.id || rom.name}
-                        rom={rom}
-                        index={idx}
-                        getCoverCandidates={getCoverCandidates}
-                        handleCoverUpload={handleCoverUpload}
-                        playCloudRom={playCloudRom}
-                        detectCore={detectCore}
-                        handleDeleteCloudRom={handleDeleteCloudRom}
-                        downloadingRom={downloadingRom}
+      {isConsoleLibraryView ? (
+        <ConsoleLibrary
+          cloudRoms={cloudRoms}
+          loadingRoms={loadingRoms}
+          uploadProgress={uploadProgress}
+          downloadingRom={downloadingRom}
+          modalOpen={Boolean(confirmDeleteRom)}
+          showPressStart={!hasSeenPressStart}
+          onDismissPressStart={() => setHasSeenPressStart(true)}
+          getCoverCandidates={getCoverCandidates}
+          handleCloudUpload={handleCloudUpload}
+          handleCoverUpload={handleCoverUpload}
+          handleDeleteCloudRom={handleDeleteCloudRom}
+          playCloudRom={playCloudRom}
+          detectCore={detectCore}
+          getCoreBadge={getCoreBadge}
+          formatGameTitle={formatGameTitle}
+        />
+      ) : (
+        <main className="main-content">
+          {!romFile ? (
+            <div className="library-container">
+              {isSupabaseConfigured ? (
+                <>
+                  <div className="library-header">
+                    <h2><Cloud size={24} style={{ display: 'inline', marginRight: '10px' }} /> Tu Biblioteca en la Nube</h2>
+                    <label 
+                      tabIndex={0}
+                      className="upload-cloud-btn"
+                      style={uploadProgress ? { opacity: 0.85, pointerEvents: 'none', cursor: 'wait' } : {}}
+                    >
+                      {uploadProgress ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Subiendo ({uploadProgress.current}/{uploadProgress.total})...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={18} /> Subir Juegos a la Nube
+                        </>
+                      )}
+                      <input 
+                        type="file" 
+                        multiple 
+                        accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md,.zip" 
+                        onChange={handleCloudUpload} 
+                        disabled={!!uploadProgress}
                       />
-                    ))
-                  ) : (
-                    <div className="empty-library">
-                      <p>Tu nube está vacía. ¡Sube un juego para empezar tu colección!</p>
-                    </div>
-                  )}
-                </div>
+                    </label>
+                  </div>
 
-                <hr className="divider" />
-              </>
-            ) : null}
+                  <div className="rom-grid">
+                    {loadingRoms ? (
+                      <p className="loading-text">Cargando biblioteca...</p>
+                    ) : cloudRoms.length > 0 ? (
+                      cloudRoms.map((rom, idx) => (
+                        <RomCard
+                          key={rom.id || rom.name}
+                          rom={rom}
+                          index={idx}
+                          getCoverCandidates={getCoverCandidates}
+                          handleCoverUpload={handleCoverUpload}
+                          playCloudRom={playCloudRom}
+                          detectCore={detectCore}
+                          handleDeleteCloudRom={handleDeleteCloudRom}
+                          downloadingRom={downloadingRom}
+                        />
+                      ))
+                    ) : (
+                      <div className="empty-library">
+                        <p>Tu nube está vacía. ¡Sube un juego para empezar tu colección!</p>
+                      </div>
+                    )}
+                  </div>
 
-            <div className="local-play-section">
-              <h3>Jugar archivo local (Sin guardar en la nube)</h3>
-              <p>Arrastra tu juego o búscalo en tu PC</p>
-              <label tabIndex={0} className="upload-btn">
-                Explorar Archivos Locales
-                <input type="file" accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md,.zip" onChange={handleLocalPlay} />
-              </label>
+                  <hr className="divider" />
+                </>
+              ) : null}
+
+              <div className="local-play-section">
+                <h3>Jugar archivo local (Sin guardar en la nube)</h3>
+                <p>Arrastra tu juego o búscalo en tu PC</p>
+                <label tabIndex={0} className="upload-btn">
+                  Explorar Archivos Locales
+                  <input type="file" accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.gen,.md,.zip" onChange={handleLocalPlay} />
+                </label>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="game-wrapper">
-            <h2 className="game-title">Jugando: {fileName}</h2>
-            <RetroEmulator
-              romFile={romFile}
-              core={core}
-              onStop={() => {
-                setRomFile(null);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-          </div>
-        )}
-      </main>
-
-      {!romFile && consoleActive && (
-        <div className="console-hud-bar active" role="status">
-          <div className="console-hud-left">
-            <Gamepad2 size={16} />
-            <span>Modo Mando Activo</span>
-          </div>
-          <div className="console-hud-hints">
-            <span><strong>D-Pad / Stick</strong> Mover</span>
-            <span><strong>A / Enter</strong> Jugar o Elegir</span>
-            <span><strong>X</strong> Carátula</span>
-            <span><strong>Y</strong> Eliminar</span>
-            <span><strong>L1 / R1</strong> Pantalla Completa</span>
-          </div>
-        </div>
+          ) : (
+            <div className="game-wrapper">
+              <h2 className="game-title">Jugando: {fileName}</h2>
+              <RetroEmulator
+                romFile={romFile}
+                core={core}
+                onStop={handleStopGame}
+              />
+            </div>
+          )}
+        </main>
       )}
 
       <ConfirmModal
@@ -691,7 +719,7 @@ function App() {
         onCancel={() => setConfirmDeleteRom(null)}
       />
 
-      {downloadingRom && (
+      {downloadingRom && !isConsoleLibraryView && (
         <div style={{
           position: 'fixed',
           bottom: '24px',
@@ -714,9 +742,11 @@ function App() {
         </div>
       )}
       
-      <footer className="footer">
-        <p>Impulsado por WebAssembly (Nostalgist & Libretro)</p>
-      </footer>
+      {!isConsoleLibraryView && (
+        <footer className="footer">
+          <p>Impulsado por WebAssembly (Nostalgist & Libretro)</p>
+        </footer>
+      )}
     </div>
   )
 }
